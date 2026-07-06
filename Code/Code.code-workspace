@@ -4,6 +4,8 @@
             "path": "."
         }
     ],
-    "settings": {},
+    "settings": {
+        "EIDE.ARM.ARMCC6.InstallDirectory": "D:\\Keil\\ARM\\ARMCLANG"
+    },
     "extensions": {}
 }

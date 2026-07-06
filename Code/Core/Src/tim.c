@@ -13,6 +13,8 @@
 
 #define TIM3_PSC                    169U
 #define TIM3_ARR                    999U
+#define TIM4_PSC                    169U
+#define TIM4_ARR                    499U
 #define TIM1_PWM_ARR                ((uint32_t)PWM_PERIOD)
 #define TIM1_ADC_TRIGGER_COMPARE    (TIM1_PWM_ARR - 20U)
 #define TIM15_ENCODER_COMPARE       (TIM1_ADC_TRIGGER_COMPARE - 2000U)
@@ -200,9 +202,9 @@ void MX_TIM4_Init(void)
 
   LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM4);
 
-  TIM_InitStruct.Prescaler = 169;
+  TIM_InitStruct.Prescaler = TIM4_PSC;
   TIM_InitStruct.CounterMode = LL_TIM_COUNTERMODE_UP;
-  TIM_InitStruct.Autoreload = 999;
+  TIM_InitStruct.Autoreload = TIM4_ARR;
   TIM_InitStruct.ClockDivision = LL_TIM_CLOCKDIVISION_DIV1;
   LL_TIM_Init(TIM4, &TIM_InitStruct);
 

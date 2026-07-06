@@ -59,13 +59,10 @@
 #define ENCODER_PERIOD_COUNTS          ((1U << ENCODER_RESOLUTION) / ENCODER_SENSOR_PERIODS_PER_REV)
 #define ENCODER_PERIOD_ANGLE_SCALE     (360.0f / (float)ENCODER_PERIOD_COUNTS)
 #define ENCODER_EFFECTIVE_POLE_PAIRS   (MOTOR_POLE_PAIRS / ENCODER_SENSOR_PERIODS_PER_REV)
-#define SPEED_CALC_INTERVAL     0.001f          // 速度计算间隔（1ms，单位：秒）
-#define SPEED_FILTER_K          0.2f            // 速度低通滤波系数（0~1，越小越平滑）
-#define DIRECTION_CW            -1              // 电机方向
-#define ENCODER_ZERO            213.7f           // 编码器零位（单位：度）
+#define SPEED_CALC_INTERVAL     0.001f
+#define SPEED_FILTER_K          0.2f
 
-/* ================================= 数据类型定义 ================================= */
-// 编码器状态枚举
+/* Encoder status. */
 typedef enum {
     ENCODER_STATUS_OK = 0,        // 正常
     ENCODER_STATUS_ERR_COMM,      // 通信错误
@@ -80,6 +77,8 @@ typedef struct {
     float    mechanical_angle;          // 机械角度(累积值，可正可负)
     float    electrical_angle;          // 电角度（0~360°，需结合电机极对数计算）
     float    electrical_speed;          // 电角速度（0~2π rad/s）
+    int32_t  mechanical_turns;          // accumulated mechanical turns
+    float    mechanical_position;       // multi-turn position, deg
     float    mechanical_speed;          // 机械角速度（°/s）
     float    mechanical_accsd;          // 机械角加速度(°/s^2)
     uint8_t  error_flag;                // 错误标志（0=无错误，1=有错误）
@@ -89,7 +88,6 @@ typedef struct {
 typedef struct {
     float theta_hat;       // estimated position, deg
     float omega_hat;       // estimated velocity, deg/s
-    float alpha_hat;       // estimated acceleration, deg/s^2
     uint8_t inited;
 } pos_obs_t;
 
@@ -99,23 +97,20 @@ extern pos_obs_t g_pos_obs;
 /* ================================= 函数声明 ================================= */
 /**
   * @brief  编码器初始化
-  * @param  无
   * @retval encoder_status_t 初始化状态（ENCODER_STATUS_OK 为成功）
   */
 encoder_status_t encoder_init(void);
 
 /**
   * @brief  读取编码器原始角度值（14位，未缩放）
-  * @param  无
-  * @note   约4.5us
+  * @note   约 2.5us
   * @retval uint16_t 原始角度值（0~16383），读取失败返回 0xFFFF
   */
 uint16_t encoder_read_raw_angle(void);
 
 /**
   * @brief  读取编码器机械角度（0~360°，已含零点校准）
-  * @param  无
-  * @note   约4.8us
+  * @note   约 2.8us
   * @retval float 机械角度值（°），读取失败返回 -1.0f
   */
 float encoder_read_mechanical_angle(void);
@@ -123,20 +118,17 @@ float encoder_read_mechanical_angle(void);
 /**
   * @brief  读取编码器电角度
   * @note   将机械角度乘以极对数得到电角度，用于FOC控制中的磁场定向
-  * @param  无
-  * @retval float: 电角度值（度），失败返回-1.0f
+  * @retval float 电角度值（度），失败返回 -1.0f
   */
 float encoder_read_electrical_angle(void);
 
 /**
-  * @brief  设置编码器零位
+  * @brief  设置编码器零点
   */
 encoder_status_t encoder_set_zero_temp(void);
 
 /**
   * @brief  清除编码器错误标志
-  * @param  无
-  * @retval 无
   */
 void encoder_clear_error(void);
 

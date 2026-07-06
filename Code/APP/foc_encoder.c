@@ -178,9 +178,7 @@ uint16_t encoder_read_raw_angle(void)
     encoder_data.error_flag = 0U;
     uint16_t raw_angle = ((uint16_t)reg03 << 6) | (reg04 >> 2);
 
-    // debug_log("%d", raw_angle);
-    // debug_log("%d, %d", reg03, reg04);
-    return raw_angle;           // 拼接14位角度
+    return raw_angle;
 }
 
 void encoder_spi_debug(void)
@@ -217,13 +215,13 @@ void encoder_spi_debug(void)
 pos_obs_t g_pos_obs = {0};
 
 // 观测器带宽
-#define POS_OBS_BW_HZ  (10.0f)
+#define POS_OBS_BW_HZ  (40.0f)
 #define POS_OBS_BW     (2.0f * _PI * POS_OBS_BW_HZ)
 
 /**
- * @brief 三阶龙伯格观测器（位置-速度-加速度）
- * @note  三重极点配置，用于平滑位置估计及速度/加速度提取
- * @param theta_meas 实测位置（度或弧度，单位需一致）
+ * @brief 二阶龙伯格观测器
+ * @note  双重极点配置，仅用位置测量估计平滑位置和转速
+ * @param theta_meas 实测位置
  * @param dt 采样周期(s)
  */
 static inline void pos_obs_update(float theta_meas, float dt)
@@ -233,34 +231,30 @@ static inline void pos_obs_update(float theta_meas, float dt)
     if (!g_pos_obs.inited) {
         g_pos_obs.theta_hat = theta_meas;
         g_pos_obs.omega_hat = 0.0f;
-        g_pos_obs.alpha_hat = 0.0f;
         g_pos_obs.inited = 1;
         return;
     }
 
-    const float w   = POS_OBS_BW;
-    const float dt2 = dt * dt;
+    const float w = POS_OBS_BW;
+    const float Kp = 2.0f * w;
+    const float Kv = w * w;
 
-    /* 增益配置：(s + w)^3 展开系数 */
-    const float Kp = 3.0f * w;
-    const float Kv = 3.0f * w * w;
-    const float Ka = w * w * w;
+    /* 状态预测（恒速模型） */
+    const float theta_pred = g_pos_obs.theta_hat + g_pos_obs.omega_hat * dt;
+    const float omega_pred = g_pos_obs.omega_hat;
 
-    /* 状态预测（匀加速度模型） */
-    const float theta_pred = g_pos_obs.theta_hat
-                           + g_pos_obs.omega_hat * dt
-                           + 0.5f * g_pos_obs.alpha_hat * dt2;
-    const float omega_pred = g_pos_obs.omega_hat
-                           + g_pos_obs.alpha_hat * dt;
-    const float alpha_pred = g_pos_obs.alpha_hat;  // 恒定加速度假设
+    /* position residual */
+    float e = theta_meas - theta_pred;
+    while (e > 180.0f) {
+        e -= 360.0f;
+    }
+    while (e < -180.0f) {
+        e += 360.0f;
+    }
 
-    /* 位置残差 */
-    const float e = theta_meas - theta_pred;
-
-    /* 状态校正（离散积分） */
-    g_pos_obs.theta_hat   = theta_pred + Kp * dt * e;
-    g_pos_obs.omega_hat   = omega_pred + Kv * dt * e;
-    g_pos_obs.alpha_hat   = alpha_pred + Ka * dt * e;
+    /* 状态校正 */
+    g_pos_obs.theta_hat = angle_normalize_360(theta_pred + Kp * dt * e);
+    g_pos_obs.omega_hat = omega_pred + Kv * dt * e;
 }
 
 /**
@@ -270,22 +264,42 @@ static inline void pos_obs_update(float theta_meas, float dt)
   */
 float encoder_read_mechanical_angle(void)
 {
-    static float last_raw = 0;
-    float delta = encoder_data.angle_raw_scaled - last_raw;
+    static float last_raw = 0.0f;
+    static uint8_t first_run = 1U;
+    float current_angle = encoder_data.angle_raw_scaled;
 
-    // 处理角度环绕伪差
-    if (delta > 180) delta -= 360;
-    else if (delta < -180) delta += 360;
+    if (first_run != 0U) {
+        encoder_data.mechanical_angle = current_angle;
+        encoder_data.mechanical_position =
+            ((float)encoder_data.mechanical_turns * 360.0f) + current_angle;
+        last_raw = current_angle;
+        first_run = 0U;
 
-    // 累加累计角度 & 更新上次原始角度
-    encoder_data.mechanical_angle -= delta; // 正负跟电机接线相关
-    last_raw = encoder_data.angle_raw_scaled;
+        pos_obs_update(encoder_data.mechanical_angle, PWM_PERIOD_S);
+        encoder_data.mechanical_speed = g_pos_obs.omega_hat;
+        encoder_data.electrical_speed = deg2rad(encoder_data.mechanical_speed * MOTOR_POLE_PAIRS);
+        return encoder_data.mechanical_angle;
+    }
+
+    float delta = current_angle - last_raw;
+
+    if (delta > 180.0f) {
+        delta -= 360.0f;
+        encoder_data.mechanical_turns--;
+    } else if (delta < -180.0f) {
+        delta += 360.0f;
+        encoder_data.mechanical_turns++;
+    }
+
+    encoder_data.mechanical_angle = current_angle;
+    encoder_data.mechanical_position =
+        ((float)encoder_data.mechanical_turns * 360.0f) + current_angle;
+    last_raw = current_angle;
 
     pos_obs_update(encoder_data.mechanical_angle, PWM_PERIOD_S);
 
     encoder_data.mechanical_speed = g_pos_obs.omega_hat;
     encoder_data.electrical_speed = deg2rad(encoder_data.mechanical_speed * MOTOR_POLE_PAIRS);
-    encoder_data.mechanical_accsd = g_pos_obs.alpha_hat;
     return encoder_data.mechanical_angle;
 }
 
@@ -314,14 +328,13 @@ float encoder_read_electrical_angle(void)
     {
         encoder_data.angle_raw_scaled = calibrated_mechanical_angle;
         encoder_data.electrical_angle =
-            angle_normalize_360(calibrated_electrical_angle + ENC_ELEC_ZERO_OFFSET_DEG);
+            angle_normalize_360(calibrated_electrical_angle + 90.0f);
         return encoder_data.electrical_angle;
     }
 #endif
 
     encoder_data.angle_raw_scaled = (encoder_data.raw_angle * ENCODER_ANGLE_SCALE);
-    // 加负号修正编码器/电机极性反的问题
-    encoder_data.electrical_angle = angle_normalize_360(DIRECTION_CW * encoder_data.angle_raw_scaled * MOTOR_POLE_PAIRS);
+    encoder_data.electrical_angle = angle_normalize_360(encoder_data.angle_raw_scaled * MOTOR_POLE_PAIRS);
     return encoder_data.electrical_angle;
 }
 

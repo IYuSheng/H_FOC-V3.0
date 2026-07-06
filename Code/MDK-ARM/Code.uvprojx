@@ -10,13 +10,13 @@
       <TargetName>Code</TargetName>
       <ToolsetNumber>0x4</ToolsetNumber>
       <ToolsetName>ARM-ADS</ToolsetName>
-      <pCCUsed>6220000::V6.22::ARMCLANG</pCCUsed>
+      <pCCUsed>6240000::V6.24::ARMCLANG</pCCUsed>
       <uAC6>1</uAC6>
       <TargetOption>
         <TargetCommonOption>
           <Device>STM32G431CBTx</Device>
           <Vendor>STMicroelectronics</Vendor>
-          <PackID>Keil.STM32G4xx_DFP.2.0.0</PackID>
+          <PackID>Keil.STM32G4xx_DFP.2.2.0</PackID>
           <PackURL>https://www.keil.com/pack/</PackURL>
           <Cpu>IRAM(0x20000000-0x20007FFF) IROM(0x8000000-0x801FFFF) CLOCK(8000000) FPU2 CPUTYPE("Cortex-M4") TZ</Cpu>
           <FlashUtilSpec></FlashUtilSpec>
@@ -767,6 +767,26 @@
               <FilePath>..\MID\foc_filter.h</FilePath>
             </File>
             <File>
+              <FileName>foc_ladrc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MID\foc_ladrc.c</FilePath>
+            </File>
+            <File>
+              <FileName>foc_ladrc.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\MID\foc_ladrc.h</FilePath>
+            </File>
+            <File>
+              <FileName>foc_vibration_sweep.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MID\foc_vibration_sweep.c</FilePath>
+            </File>
+            <File>
+              <FileName>foc_vibration_sweep.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\MID\foc_vibration_sweep.h</FilePath>
+            </File>
+            <File>
               <FileName>foc_cogging_compensation.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\MID\foc_cogging_compensation.c</FilePath>
@@ -805,6 +825,26 @@
               <FileName>foc_trapezoid_planner.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\MID\foc_trapezoid_planner.h</FilePath>
+            </File>
+            <File>
+              <FileName>foc_trajectory_planning.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MID\foc_trajectory_planning.c</FilePath>
+            </File>
+            <File>
+              <FileName>foc_trajectory_planning.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\MID\foc_trajectory_planning.h</FilePath>
+            </File>
+            <File>
+              <FileName>foc_encoder_calibration.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MID\foc_encoder_calibration.c</FilePath>
+            </File>
+            <File>
+              <FileName>foc_encoder_calibration.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\MID\foc_encoder_calibration.h</FilePath>
             </File>
           </Files>
         </Group>

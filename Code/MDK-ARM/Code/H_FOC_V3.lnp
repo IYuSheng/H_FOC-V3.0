@@ -42,9 +42,14 @@
 "code\foc_sys.o"
 "code\foc_conversion.o"
 "code\foc_filter.o"
+"code\foc_ladrc.o"
+"code\foc_vibration_sweep.o"
 "code\foc_cogging_compensation.o"
 "code\foc_communication.o"
 "code\foc_prase.o"
+"code\foc_trapezoid_planner.o"
+"code\foc_trajectory_planning.o"
+"code\foc_encoder_calibration.o"
 --strict --scatter "Code\H_FOC_V3.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers

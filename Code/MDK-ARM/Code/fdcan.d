@@ -45,4 +45,6 @@ code/fdcan.o: ..\Core\Src\fdcan.c ..\Core\Inc\fdcan.h ..\Core\Inc\main.h \
   ..\MID\foc_prase.h ..\MID\foc_vibration_sweep.h \
   ..\APP\foc_Parameteridentifikation.h ..\MID\foc_cogging_compensation.h \
   ..\MID\foc_trajectory_planning.h ..\MID\foc_sensorless.h \
-  ..\MID\foc_filter.h ..\MID\foc_communication.h
+  ..\MID\foc_filter.h ..\MID\foc_ladrc.h \
+  ..\MID\foc_encoder_calibration.h ..\MID\foc_trapezoid_planner.h \
+  ..\MID\foc_communication.h

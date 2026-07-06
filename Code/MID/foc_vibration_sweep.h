@@ -27,12 +27,8 @@ typedef struct {
 extern EI_Shaper_t g_ei_shaper;
 extern resonance_test_t g_res_test;
 
-/**
- * @brief 触发共振频率测试
- */
-void resonance_test_trigger(void);
-
 void ei_shaper_init(float freq_hz, float V, float sample_time_s);
+void ei_shaper_reset(float value);
 float ei_shaper_process(float input);
 
 #endif

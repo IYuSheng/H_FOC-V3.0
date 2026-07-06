@@ -81,11 +81,11 @@ static inline float clampf(float x, float min_v, float max_v)
 inline uint8_t svpwm_sector_calc(AlphaBetaTypeDef *alpha_beta)
 {
     uint8_t sector, pos1, pos2, pos3 = 0;
-    
+
     float X = alpha_beta->beta;
     float Y = (_SQRT3  * alpha_beta->alpha - alpha_beta->beta);
     float Z = (-_SQRT3 * alpha_beta->alpha - alpha_beta->beta);
-    
+
     pos1 = (X > 1e-6f) ? 1 : 0;
     pos2 = (Y > 1e-6f) ? 1 : 0;
     pos3 = (Z > 1e-6f) ? 1 : 0;
@@ -140,7 +140,7 @@ inline void svpwm_calc_times(AlphaBetaTypeDef *alpha_beta, SVPWM_t *svpwm, float
     float X = beta * factor;
     float Y = ( _SQRT3 * alpha + beta) * half_factor;
     float Z = (beta -_SQRT3 * alpha) * half_factor;
-    
+
     // 4. 按扇区计算T1和T2（基于X/Y/Z）
     switch (svpwm->sector)
     {
@@ -173,7 +173,7 @@ inline void svpwm_calc_times(AlphaBetaTypeDef *alpha_beta, SVPWM_t *svpwm, float
             svpwm->T2 = 0.0f;
             break;
     }
-    
+
     // 6. 计算零矢量时间（确保T0≥0，避免负数）
     svpwm->T0 = PWM_PERIOD_S - svpwm->T1 - svpwm->T2;
     if (svpwm->T0 < 0.0f) svpwm->T0 = 0.0f;
@@ -266,7 +266,7 @@ inline void spwm_duty_calc(SPWM_t *spwm, AlphaBetaTypeDef *alpha_beta, float vbu
 inline void clark_transform(void *abc_i, AlphaBetaTypeDef *alpha_beta)
 {
     foc_data_i *current_abc = (foc_data_i *)abc_i;
-    
+
     // 标准幅值不变性Clarke变换
     // α = (2/3)*ia + (-1/3)*ib + (-1/3)*ic
     // β = 0*ia + (1/√3)*ib + (-1/√3)*ic
@@ -278,7 +278,7 @@ inline void clark_transform(void *abc_i, AlphaBetaTypeDef *alpha_beta)
     alpha_beta->alpha_i = TWO_THIRD * current_abc->ia - ONE_THIRD * current_abc->ib - ONE_THIRD * current_abc->ic;
     alpha_beta->beta_i = ONE_SQRT3 * current_abc->ib - ONE_SQRT3 * current_abc->ic;
 }
-    
+
 /**
  * @brief 将αβ转换为dq坐标系下的电流值
  * @param current_abc αβ电流值
@@ -315,7 +315,7 @@ inline float foc_id_pid_calculate(float target_id, float actual_id)
 {
     float error = target_id - actual_id;
     float p_term = id_pid.kp * error;
-    
+
     // 积分项计算与限幅
     id_pid.integral += id_pid.ki * error;
 
@@ -339,7 +339,7 @@ inline float foc_iq_pid_calculate(float target_iq, float actual_iq)
 {
     float error = target_iq - actual_iq;
     float p_term = iq_pid.kp * error;
-    
+
     // 积分项计算与限幅
     iq_pid.integral += iq_pid.ki * error;
 
@@ -349,7 +349,7 @@ inline float foc_iq_pid_calculate(float target_iq, float actual_iq)
         iq_pid.integral = -iq_pid.integral_limit;
     }
 
-    float iq_out = p_term + iq_pid.integral;   
+    float iq_out = p_term + iq_pid.integral;
     return iq_out;
 }
 
@@ -364,7 +364,7 @@ inline float foc_speed_pid_calculate(float target_speed, float actual_speed)
     float error = (target_speed - actual_speed);
 
     float p_term = speed_pid.kp * error;
-    
+
     // 积分项计算与限幅
     speed_pid.integral += speed_pid.ki * error;
 
@@ -383,8 +383,8 @@ inline float foc_speed_pid_calculate(float target_speed, float actual_speed)
     {
         speed_pid.output = -SPEED_OUT_LIMIT;
     }
-    
-    
+
+
     return speed_pid.output;
 }
 
@@ -397,10 +397,10 @@ inline float foc_speed_pid_calculate(float target_speed, float actual_speed)
 inline float foc_position_pid_calculate(float target_position, float current_position)
 {
     float error, p_term, d_term;
-    
+
     position_pid.target = target_position;
     position_pid.current = current_position;
-    
+
     // 计算误差（目标 - 当前）
     error = target_position - current_position;
     // if(fabs(error) < 1.0f)
@@ -413,7 +413,7 @@ inline float foc_position_pid_calculate(float target_position, float current_pos
     // }
 
     position_pid.w_ref = POSITION_KV * error; // 期望速度
-    
+
     if(POSITION_W_MAX < position_pid.w_ref)
     {
         position_pid.w_ref = POSITION_W_MAX;
@@ -422,7 +422,7 @@ inline float foc_position_pid_calculate(float target_position, float current_pos
     {
         position_pid.w_ref = -POSITION_W_MAX;
     }
-    
+
     // 计算微分项（速度误差阻尼）
     d_term = position_pid.kd * (position_pid.w_ref - encoder_data.mechanical_speed);
 
@@ -430,12 +430,12 @@ inline float foc_position_pid_calculate(float target_position, float current_pos
 
     // 比例项
     p_term = position_pid.kp * error;
-    
+
     // if(fabs(error) < 5.0f)
     {
         // 积分项累加
         position_pid.integral += position_pid.ki * error;
-        
+
         // 积分限幅
         if (position_pid.integral > position_pid.integral_limit) {
             position_pid.integral = position_pid.integral_limit;
@@ -446,7 +446,7 @@ inline float foc_position_pid_calculate(float target_position, float current_pos
 
     // 更新上次误差，用于下次计算微分项
     position_pid.last_error = error;
-    
+
     // 输出 = 比例项 + 积分项
     position_pid.output = p_term + position_pid.integral + d_term;
     if(position_pid.output > POSITION_OUT_LIMIT)
@@ -457,6 +457,6 @@ inline float foc_position_pid_calculate(float target_position, float current_pos
     {
         position_pid.output = -POSITION_OUT_LIMIT;
     }
-    
+
     return position_pid.output;
 }

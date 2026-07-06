@@ -199,17 +199,17 @@ void USART3_IRQHandler(void)
     {
         // 读取接收数据
         char received_char = LL_USART_ReceiveData8(USART3);
-        
+
         if (received_char == '\n')
         {
             if (rx_index > 0) // 如果有数据
             {
                 // 添加字符串结束符
                 rx_buffer[rx_index] = '\0';
-                
+
                 // 解析接收到的数据
                 parse_received_data(rx_buffer, rx_index);
-                
+
                 // 重置接收索引
                 rx_index = 0;
             }
@@ -229,9 +229,9 @@ void USART3_IRQHandler(void)
         }
     }
     // 检查错误标志
-    else if (LL_USART_IsActiveFlag_PE(USART3) || 
-             LL_USART_IsActiveFlag_FE(USART3) || 
-             LL_USART_IsActiveFlag_NE(USART3) || 
+    else if (LL_USART_IsActiveFlag_PE(USART3) ||
+             LL_USART_IsActiveFlag_FE(USART3) ||
+             LL_USART_IsActiveFlag_NE(USART3) ||
              LL_USART_IsActiveFlag_ORE(USART3))
     {
         // 清除错误标志
@@ -240,8 +240,6 @@ void USART3_IRQHandler(void)
         if (LL_USART_IsEnabledIT_ERROR(USART3)) LL_USART_ClearFlag_NE(USART3);
         if (LL_USART_IsEnabledIT_ERROR(USART3)) LL_USART_ClearFlag_ORE(USART3);
 
-        debug_log("UART Error!");
-        
         // 重置接收
         rx_index = 0;
     }

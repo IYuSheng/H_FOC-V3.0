@@ -3,56 +3,100 @@
 <pre>
 <h1>µVision Build Log</h1>
 <h2>Tool Versions:</h2>
-IDE-Version: ¦ÌVision V5.40.0.0
-Copyright (C) 2024 ARM Ltd and ARM Germany GmbH. All rights reserved.
-License Information: A Admin, sb, LIC=UJWP0-BKMRF-GK8BG-VYBSK-KZDPK-H0WBG
+IDE-Version: ¦ÌVision V5.43.1.0
+Copyright (C) 2025 ARM Ltd and ARM Germany GmbH. All rights reserved.
+License Information: H R, sss, LIC=MPPLD-8P77N-DYKV3-AKQWQ-95MIZ-J3TWZ
  
 Tool Versions:
-Toolchain:       MDK-ARM Plus  Version: 5.40.0.3
-Toolchain Path:  D:\Keilv5\ARM\ARMCLANG\Bin
-C Compiler:      ArmClang.exe V6.22
-Assembler:       Armasm.exe V6.22
-Linker/Locator:  ArmLink.exe V6.22
-Library Manager: ArmAr.exe V6.22
-Hex Converter:   FromElf.exe V6.22
-CPU DLL:         SARMCM3.DLL V5.40.0.3
+Toolchain:       MDK-ARM Plus  Version: 5.43.0.0
+Toolchain Path:  D:\Keil\ARM\ARMCLANG\Bin
+C Compiler:      ArmClang.exe V6.24
+Assembler:       Armasm.exe V6.24
+Linker/Locator:  ArmLink.exe V6.24
+Library Manager: ArmAr.exe V6.24
+Hex Converter:   FromElf.exe V6.24
+CPU DLL:         SARMCM3.DLL V5.43.0.0
 Dialog DLL:      DCM.DLL V1.17.5.0
-Target DLL:      STLink\ST-LINKIII-KEIL_SWO.dll V3.3.0.0
-Dialog DLL:      TCM.DLL V1.56.4.0
+Target DLL:      STLink\ST-LINKIII-KEIL_SWO.dll V3.3.1.0
+Dialog DLL:      TCM.DLL V1.56.6.0
  
 <h2>Project:</h2>
-C:\Users\admin\Desktop\HR_Project\H_FOC_V3.0\Code\MDK-ARM\Code.uvprojx
-Project File Date:  05/01/2026
+C:\Users\rui.huang\Desktop\Workspace\H_FOC-V3.0-master\Code\MDK-ARM\Code.uvprojx
+Project File Date:  07/03/2026
 
 <h2>Output:</h2>
-*** Using Compiler 'V6.22', folder: 'D:\Keilv5\ARM\ARMCLANG\Bin'
+*** Using Compiler 'V6.24', folder: 'D:\Keil\ARM\ARMCLANG\Bin'
 Build target 'Code'
-compiling main.c...
+../MID/foc_encoder_calibration.c(3): warning: In file included from...
+../Core/Inc\adc.h(29): warning: In file included from...
+../Core/Inc\main.h(29): warning: In file included from...
+../APP\FOC_Init.h(29): warning: In file included from...
+../APP\foc_encoder.h(28): warning: In file included from...
+../MID\foc_conversion.h(107): warning: inline function 'angle_normalize_360' is not defined [-Wundefined-inline]
+  107 | extern inline float angle_normalize_360(float angle);
+      |                     ^
+../MID/foc_encoder_calibration.c(620): note: used here
+  620 |     foc_ctrl.angle = angle_normalize_360(electrical_angle_deg);
+      |                      ^
+../MID/foc_encoder_calibration.c(3): warning: In file included from...
+../Core/Inc\adc.h(29): warning: In file included from...
+../Core/Inc\main.h(29): warning: In file included from...
+../APP\FOC_Init.h(23): warning: In file included from...
+../Core/Inc\cordic.h(55): warning: inline function 'CORDIC_SinCos_Deg' is not defined [-Wundefined-inline]
+   55 | inline void CORDIC_SinCos_Deg(float angle_deg, float *sin_val, float *cos_val);
+      |             ^
+../MID/foc_encoder_calibration.c(626): note: used here
+  626 |     CORDIC_SinCos_Deg(foc_ctrl.angle, &sin_theta, &cos_theta);
+      |     ^
+../MID/foc_encoder_calibration.c(3): warning: In file included from...
+../Core/Inc\adc.h(29): warning: In file included from...
+../Core/Inc\main.h(29): warning: In file included from...
+../APP\FOC_Init.h(29): warning: In file included from...
+../APP\foc_encoder.h(28): warning: In file included from...
+../MID\foc_conversion.h(174): warning: inline function 'inv_park_transform_f32' is not defined [-Wundefined-inline]
+  174 | extern inline void inv_park_transform_f32(foc_control_t *foc_ctrl, AlphaBetaTypeDef *alpha_beta, float sin_theta, float cos_theta);
+      |                    ^
+../MID/foc_encoder_calibration.c(627): note: used here
+  627 |     inv_park_transform_f32(&foc_ctrl, &alpha_beta, sin_theta, cos_theta);
+      |     ^
+../MID/foc_encoder_calibration.c(3): warning: In file included from...
+../Core/Inc\adc.h(29): warning: In file included from...
+../Core/Inc\main.h(29): warning: In file included from...
+../APP\FOC_Init.h(29): warning: In file included from...
+../APP\foc_encoder.h(28): warning: In file included from...
+../MID\foc_conversion.h(150): warning: inline function 'spwm_duty_calc' is not defined [-Wundefined-inline]
+  150 | extern inline void spwm_duty_calc(SPWM_t *spwm, AlphaBetaTypeDef *alpha_beta, float vbus);
+      |                    ^
+../MID/foc_encoder_calibration.c(628): note: used here
+  628 |     spwm_duty_calc(&spwm, &alpha_beta, foc_voltage_data.vbus);
+      |     ^
+4 warnings generated.
+compiling foc_encoder_calibration.c...
 linking...
-Program Size: Code=24624 RO-data=1444 RW-data=48 ZI-data=2768  
+Program Size: Code=24288 RO-data=1968 RW-data=44 ZI-data=2716  
 FromELF: creating hex file...
-"Code\H_FOC_V3.0" - 0 Error(s), 0 Warning(s).
+"Code\H_FOC_V3.0" - 0 Error(s), 4 Warning(s).
 
 <h2>Software Packages used:</h2>
 
 Package Vendor: ARM
-                https://www.keil.com/pack/ARM.CMSIS.6.1.0.pack
-                ARM::CMSIS@6.1.0
+                https://www.keil.com/pack/ARM.CMSIS.6.3.0.pack
+                ARM::CMSIS@6.3.0
                 CMSIS (Common Microcontroller Software Interface Standard)
-   * Component: CORE Version: 6.1.0
+   * Component: CORE Version: 6.2.0
 
 Package Vendor: Keil
-                https://www.keil.com/pack/Keil.STM32G4xx_DFP.2.0.0.pack
-                Keil::STM32G4xx_DFP@2.0.0
+                https://www.keil.com/pack/Keil.STM32G4xx_DFP.2.2.0.pack
+                Keil::STM32G4xx_DFP@2.2.0
                 STMicroelectronics STM32G4 Series Device Support
 
 <h2>Collection of Component include folders:</h2>
   ./RTE/_Code
-  D:/Keilv5/ARM/PACK/ARM/CMSIS/6.1.0/CMSIS/Core/Include
+  D:/Keil/Packs/ARM/CMSIS/6.3.0/CMSIS/Core/Include
 
 <h2>Collection of Component Files used:</h2>
 
-   * Component: ARM::CMSIS:CORE@6.1.0
+   * Component: ARM::CMSIS:CORE@6.2.0
       Include file:  CMSIS/Core/Include/tz_context.h
 Build Time Elapsed:  00:00:01
 </pre>

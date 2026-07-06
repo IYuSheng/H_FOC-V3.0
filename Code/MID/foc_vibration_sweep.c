@@ -1,25 +1,9 @@
 #include "foc_vibration_sweep.h"
 #include "foc_control.h"
+#include <string.h>
 
 resonance_test_t g_res_test = {0};
 EI_Shaper_t g_ei_shaper;
-
-/**
- * @brief 触发共振频率测试
- */
-void resonance_test_trigger(void)
-{
-    g_res_test.state = 1;
-    g_res_test.start_pos = encoder_data.mechanical_angle;
-    g_res_test.target_step = 45.0f;  // 阶跃45度
-    g_res_test.sample_cnt = 0;
-    
-    // 临时降低位置环增益
-    foc_position_pi_init(0.2, 0.0f, 0.0f, 0.0f);
-    
-    // 立即设置目标位置（产生阶跃）
-    foc_ctrl.target_position = g_res_test.start_pos + g_res_test.target_step;
-}
 
 /**
  * @brief EI (Extra Insensitive) 输入整形器初始化
@@ -37,22 +21,72 @@ void resonance_test_trigger(void)
  */
 void ei_shaper_init(float freq_hz, float V, float sample_time_s)
 {
-    // 计算延迟时间
-    float Td = 0.5f / freq_hz;
-    
+    float Td;
+    uint32_t i;
+
+    g_ei_shaper.init = 0;
+    g_ei_shaper.buf_idx = 0;
+    g_ei_shaper.buf_size = 1;
+    memset(g_ei_shaper.buffer, 0, sizeof(g_ei_shaper.buffer));
+
+    if ((freq_hz <= 0.0f) || (sample_time_s <= 0.0f)) {
+        g_ei_shaper.A[0] = 1.0f;
+        g_ei_shaper.A[1] = 0.0f;
+        g_ei_shaper.A[2] = 0.0f;
+        g_ei_shaper.delay[0] = 0U;
+        g_ei_shaper.delay[1] = 0U;
+        g_ei_shaper.delay[2] = 0U;
+        g_ei_shaper.init = 1;
+        return;
+    }
+
+    if (V < 0.0f) {
+        V = 0.0f;
+    } else if (V > 1.0f) {
+        V = 1.0f;
+    }
+
+    /* EI整形器三脉冲间隔，Td为半个振动周期 */
+    Td = 0.5f / freq_hz;
+
     g_ei_shaper.A[0] = (1.0f + V) / 4.0f;
     g_ei_shaper.A[1] = (1.0f - V) / 2.0f;
     g_ei_shaper.A[2] = (1.0f + V) / 4.0f;
-    
-    // 转换为采样点数 (假设1ms周期)
-    g_ei_shaper.delay[0] = 0;
-    g_ei_shaper.delay[1] = (uint32_t)(Td / sample_time_s);
-    g_ei_shaper.delay[2] = 2 * g_ei_shaper.delay[1];
-    
-    g_ei_shaper.buf_size = g_ei_shaper.delay[2] + 10; // 留点余量
-    memset(g_ei_shaper.buffer, 0, sizeof(g_ei_shaper.buffer));
-    g_ei_shaper.buf_idx = 0;
+
+    g_ei_shaper.delay[0] = 0U;
+    g_ei_shaper.delay[1] = (uint32_t)((Td / sample_time_s) + 0.5f);
+    g_ei_shaper.delay[2] = 2U * g_ei_shaper.delay[1];
+
+    if (g_ei_shaper.delay[2] >= (uint32_t)(sizeof(g_ei_shaper.buffer) / sizeof(g_ei_shaper.buffer[0]))) {
+        g_ei_shaper.delay[2] = (uint32_t)(sizeof(g_ei_shaper.buffer) / sizeof(g_ei_shaper.buffer[0])) - 1U;
+        g_ei_shaper.delay[1] = g_ei_shaper.delay[2] / 2U;
+    }
+
+    g_ei_shaper.buf_size = g_ei_shaper.delay[2] + 1U;
+    if (g_ei_shaper.buf_size == 0U) {
+        g_ei_shaper.buf_size = 1U;
+    }
+
+    for (i = 0U; i < g_ei_shaper.buf_size; i++) {
+        g_ei_shaper.buffer[i] = 0.0f;
+    }
+
     g_ei_shaper.init = 1;
+}
+
+void ei_shaper_reset(float value)
+{
+    uint32_t i;
+
+    if (!g_ei_shaper.init) {
+        return;
+    }
+
+    for (i = 0U; i < g_ei_shaper.buf_size; i++) {
+        g_ei_shaper.buffer[i] = value;
+    }
+
+    g_ei_shaper.buf_idx = 0U;
 }
 
 // EI整形处理

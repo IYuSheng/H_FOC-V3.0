@@ -3,7 +3,7 @@
 <title>Static Call Graph - [Code\H_FOC_V3.0]</title></head>
 <body><HR>
 <H1>Static Call Graph for image Code\H_FOC_V3.0</H1><HR>
-<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 6220000: Last Updated: Wed May  6 23:01:37 2026
+<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 6240002: Last Updated: Fri Jul  3 16:08:55 2026
 <BR><P>
 <H3>Maximum Stack Usage =        492 bytes + Unknown(Functions without stacksize, Cycles, Untraceable Function Pointers)</H3><H3>
 Call chain for Maximum Stack Depth:</H3>
@@ -404,8 +404,8 @@ Global Symbols
 <P><STRONG><a name="[151]"></a>__rt_entry_postsh_1</STRONG> (Thumb, 0 bytes, Stack size unknown bytes, __rtentry2.o(.ARM.Collect$$rtentry$$00000009))
 
 <P><STRONG><a name="[89]"></a>__rt_entry_main</STRONG> (Thumb, 0 bytes, Stack size unknown bytes, __rtentry2.o(.ARM.Collect$$rtentry$$0000000D))
-<BR><BR>[Stack]<UL><LI>Max Depth = 240 + Unknown Stack Size
-<LI>Call Chain = __rt_entry_main &rArr; main &rArr; foc_debug &rArr; debug_log &rArr; vsnprintf &rArr; _printf_char_common &rArr; __printf
+<BR><BR>[Stack]<UL><LI>Max Depth = 220 + Unknown Stack Size
+<LI>Call Chain = __rt_entry_main &rArr; main &rArr; FOC_Init &rArr; MX_ADC1_Init &rArr; LL_GPIO_Init
 </UL>
 <BR>[Calls]<UL><LI><a href="#[8a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 <LI><a href="#[8b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;exit
@@ -639,19 +639,19 @@ Global Symbols
 </UL>
 <BR>[Calls]<UL><LI><a href="#[91]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_char_common
 </UL>
-<BR>[Called By]<UL><LI><a href="#[e8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;debug_log
+<BR>[Called By]<UL><LI><a href="#[ec]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;debug_log
 </UL>
 
 <P><STRONG><a name="[10a]"></a>strstr</STRONG> (Thumb, 36 bytes, Stack size 12 bytes, strstr.o(.text))
 <BR><BR>[Stack]<UL><LI>Max Depth = 12<LI>Call Chain = strstr
 </UL>
-<BR>[Called By]<UL><LI><a href="#[f6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;parse_received_data
+<BR>[Called By]<UL><LI><a href="#[ed]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;parse_received_data
 </UL>
 
-<P><STRONG><a name="[e0]"></a>__aeabi_memclr4</STRONG> (Thumb, 0 bytes, Stack size unknown bytes, rt_memclr_w.o(.text))
-<BR><BR>[Called By]<UL><LI><a href="#[c9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM1_Init
-<LI><a href="#[cc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_SPI1_Init
-<LI><a href="#[cb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_ADC1_Init
+<P><STRONG><a name="[db]"></a>__aeabi_memclr4</STRONG> (Thumb, 0 bytes, Stack size unknown bytes, rt_memclr_w.o(.text))
+<BR><BR>[Called By]<UL><LI><a href="#[c8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM1_Init
+<LI><a href="#[cb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_SPI1_Init
+<LI><a href="#[ca]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_ADC1_Init
 </UL>
 
 <P><STRONG><a name="[154]"></a>__aeabi_memclr8</STRONG> (Thumb, 0 bytes, Stack size unknown bytes, rt_memclr_w.o(.text), UNUSED)
@@ -682,23 +682,23 @@ Global Symbols
 <P><STRONG><a name="[96]"></a>_printf_pre_padding</STRONG> (Thumb, 44 bytes, Stack size 16 bytes, _printf_pad.o(.text))
 <BR><BR>[Stack]<UL><LI>Max Depth = 16<LI>Call Chain = _printf_pre_padding
 </UL>
-<BR>[Called By]<UL><LI><a href="#[ad]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_fp_hex_real
-<LI><a href="#[aa]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_fp_dec_real
-<LI><a href="#[9a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_int_common
-<LI><a href="#[9c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_wctomb
+<BR>[Called By]<UL><LI><a href="#[9c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_wctomb
 <LI><a href="#[95]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_str
 <LI><a href="#[ac]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_fp_infnan
+<LI><a href="#[ad]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_fp_hex_real
+<LI><a href="#[aa]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_fp_dec_real
+<LI><a href="#[9a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_int_common
 </UL>
 
 <P><STRONG><a name="[97]"></a>_printf_post_padding</STRONG> (Thumb, 34 bytes, Stack size 16 bytes, _printf_pad.o(.text))
 <BR><BR>[Stack]<UL><LI>Max Depth = 16<LI>Call Chain = _printf_post_padding
 </UL>
-<BR>[Called By]<UL><LI><a href="#[ad]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_fp_hex_real
-<LI><a href="#[aa]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_fp_dec_real
-<LI><a href="#[9a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_int_common
-<LI><a href="#[9c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_wctomb
+<BR>[Called By]<UL><LI><a href="#[9c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_wctomb
 <LI><a href="#[95]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_str
 <LI><a href="#[ac]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_fp_infnan
+<LI><a href="#[ad]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_fp_hex_real
+<LI><a href="#[aa]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_fp_dec_real
+<LI><a href="#[9a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_int_common
 </UL>
 
 <P><STRONG><a name="[98]"></a>_printf_truncate_signed</STRONG> (Thumb, 18 bytes, Stack size 0 bytes, _printf_truncate.o(.text))
@@ -723,9 +723,9 @@ Global Symbols
 <P><STRONG><a name="[67]"></a>_printf_int_dec</STRONG> (Thumb, 104 bytes, Stack size 24 bytes, _printf_dec.o(.text))
 <BR><BR>[Stack]<UL><LI>Max Depth = 72<LI>Call Chain = _printf_int_dec &rArr; _printf_int_common &rArr; _printf_post_padding
 </UL>
-<BR>[Calls]<UL><LI><a href="#[9a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_int_common
-<LI><a href="#[99]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_truncate_unsigned
+<BR>[Calls]<UL><LI><a href="#[99]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_truncate_unsigned
 <LI><a href="#[98]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_truncate_signed
+<LI><a href="#[9a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_int_common
 </UL>
 <BR>[Called By]<UL><LI><a href="#[69]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_u
 <LI><a href="#[68]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_d
@@ -861,8 +861,8 @@ Global Symbols
 <P><STRONG><a name="[9e]"></a>_ll_udiv10</STRONG> (Thumb, 138 bytes, Stack size 12 bytes, lludiv10.o(.text))
 <BR><BR>[Stack]<UL><LI>Max Depth = 12<LI>Call Chain = _ll_udiv10
 </UL>
-<BR>[Called By]<UL><LI><a href="#[a5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_fp_digits
-<LI><a href="#[6f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_longlong_dec
+<BR>[Called By]<UL><LI><a href="#[6f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_longlong_dec
+<LI><a href="#[a5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_fp_digits
 </UL>
 
 <P><STRONG><a name="[9a]"></a>_printf_int_common</STRONG> (Thumb, 178 bytes, Stack size 32 bytes, _printf_intcommon.o(.text))
@@ -880,12 +880,12 @@ Global Symbols
 <P><STRONG><a name="[aa]"></a>_printf_fp_dec_real</STRONG> (Thumb, 620 bytes, Stack size 104 bytes, _printf_fp_dec.o(.text))
 <BR><BR>[Stack]<UL><LI>Max Depth = 324<LI>Call Chain = _printf_fp_dec_real &rArr; _fp_digits &rArr; _btod_etento &rArr; _btod_emul &rArr; _e2e
 </UL>
-<BR>[Calls]<UL><LI><a href="#[a5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_fp_digits
-<LI><a href="#[97]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_post_padding
+<BR>[Calls]<UL><LI><a href="#[97]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_post_padding
 <LI><a href="#[96]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_pre_padding
 <LI><a href="#[ab]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__ARM_fpclassify
 <LI><a href="#[ac]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_fp_infnan
 <LI><a href="#[81]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__rt_locale
+<LI><a href="#[a5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_fp_digits
 </UL>
 <BR>[Called By]<UL><LI><a href="#[61]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_fp_dec
 </UL>
@@ -997,10 +997,10 @@ Global Symbols
 </UL>
 
 <P><STRONG><a name="[81]"></a>__rt_locale</STRONG> (Thumb, 8 bytes, Stack size 0 bytes, rt_locale_intlibspace.o(.text))
-<BR><BR>[Called By]<UL><LI><a href="#[aa]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_fp_dec_real
-<LI><a href="#[80]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__rt_lib_init_lc_common
+<BR><BR>[Called By]<UL><LI><a href="#[80]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__rt_lib_init_lc_common
 <LI><a href="#[bb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_scanf_really_real
 <LI><a href="#[b3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__rt_ctype_table
+<LI><a href="#[aa]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_fp_dec_real
 </UL>
 
 <P><STRONG><a name="[56]"></a>isspace</STRONG> (Thumb, 18 bytes, Stack size 8 bytes, isspace.o(.text))
@@ -1032,8 +1032,8 @@ Global Symbols
 <BR>[Calls]<UL><LI><a href="#[a9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_btod_emul
 <LI><a href="#[a8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_btod_ediv
 </UL>
-<BR>[Called By]<UL><LI><a href="#[a5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_fp_digits
-<LI><a href="#[b7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_fp_value
+<BR>[Called By]<UL><LI><a href="#[b7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_fp_value
+<LI><a href="#[a5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_fp_digits
 </UL>
 
 <P><STRONG><a name="[8b]"></a>exit</STRONG> (Thumb, 18 bytes, Stack size 8 bytes, exit.o(.text))
@@ -1103,7 +1103,7 @@ Global Symbols
 </UL>
 
 <P><STRONG><a name="[1b]"></a>ADC1_2_IRQHandler</STRONG> (Thumb, 24 bytes, Stack size 0 bytes, foc_sys.o(.text.ADC1_2_IRQHandler))
-<BR><BR>[Stack]<UL><LI>Max Depth = 8<LI>Call Chain = ADC1_2_IRQHandler &rArr; adc1_process_injected_current_sample
+<BR><BR>[Stack]<UL><LI>Max Depth = 48<LI>Call Chain = ADC1_2_IRQHandler &rArr; adc1_process_injected_current_sample &rArr; foc_current_in_control
 </UL>
 <BR>[Calls]<UL><LI><a href="#[c3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;adc1_process_injected_current_sample
 </UL>
@@ -1116,147 +1116,96 @@ Global Symbols
 </UL>
 <BR>[Address Reference Count : 1]<UL><LI> startup_stm32g431xx.o(RESET)
 </UL>
+<P><STRONG><a name="[f9]"></a>CORDIC_SinCos_Deg</STRONG> (Thumb, 248 bytes, Stack size 0 bytes, cordic.o(.text.CORDIC_SinCos_Deg))
+<BR><BR>[Called By]<UL><LI><a href="#[f0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_current_in_control
+</UL>
+
 <P><STRONG><a name="[7]"></a>DebugMon_Handler</STRONG> (Thumb, 2 bytes, Stack size 0 bytes, stm32g4xx_it.o(.text.DebugMon_Handler))
 <BR>[Address Reference Count : 1]<UL><LI> startup_stm32g431xx.o(RESET)
 </UL>
-<P><STRONG><a name="[e7]"></a>Error_Handler</STRONG> (Thumb, 10 bytes, Stack size 0 bytes, foc_sys.o(.text.Error_Handler))
-<BR><BR>[Called By]<UL><LI><a href="#[c8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_FDCAN1_Init
-<LI><a href="#[c6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;SystemClock_Config
+<P><STRONG><a name="[e8]"></a>Error_Handler</STRONG> (Thumb, 10 bytes, Stack size 0 bytes, foc_sys.o(.text.Error_Handler))
+<BR><BR>[Called By]<UL><LI><a href="#[c6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;SystemClock_Config
 </UL>
 
-<P><STRONG><a name="[c4]"></a>FOC_Init</STRONG> (Thumb, 54 bytes, Stack size 8 bytes, foc_init.o(.text.FOC_Init))
-<BR><BR>[Stack]<UL><LI>Max Depth = 224 + Unknown Stack Size
-<LI>Call Chain = FOC_Init &rArr; MX_FDCAN1_Init &rArr; debug_log &rArr; vsnprintf &rArr; _printf_char_common &rArr; __printf
+<P><STRONG><a name="[c4]"></a>FOC_Init</STRONG> (Thumb, 50 bytes, Stack size 8 bytes, foc_init.o(.text.FOC_Init))
+<BR><BR>[Stack]<UL><LI>Max Depth = 220 + Unknown Stack Size
+<LI>Call Chain = FOC_Init &rArr; MX_ADC1_Init &rArr; LL_GPIO_Init
 </UL>
 <BR>[Calls]<UL><LI><a href="#[c5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_Init
-<LI><a href="#[cd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_USART3_UART_Init
-<LI><a href="#[d0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM4_Init
-<LI><a href="#[cf]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM3_Init
-<LI><a href="#[ca]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM15_Init
-<LI><a href="#[c9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM1_Init
-<LI><a href="#[cc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_SPI1_Init
-<LI><a href="#[c8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_FDCAN1_Init
-<LI><a href="#[ce]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_CORDIC_Init
-<LI><a href="#[cb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_ADC1_Init
+<LI><a href="#[cc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_USART3_UART_Init
+<LI><a href="#[cf]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM4_Init
+<LI><a href="#[ce]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM3_Init
+<LI><a href="#[c9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM15_Init
+<LI><a href="#[c8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM1_Init
+<LI><a href="#[cb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_SPI1_Init
+<LI><a href="#[cd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_CORDIC_Init
+<LI><a href="#[ca]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_ADC1_Init
 <LI><a href="#[c7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_GPIO_Init
 <LI><a href="#[c6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;SystemClock_Config
 </UL>
 <BR>[Called By]<UL><LI><a href="#[8a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
-<P><STRONG><a name="[d1]"></a>HAL_Delay</STRONG> (Thumb, 40 bytes, Stack size 16 bytes, stm32g4xx_hal.o(.text.HAL_Delay))
+<P><STRONG><a name="[d0]"></a>HAL_Delay</STRONG> (Thumb, 40 bytes, Stack size 16 bytes, stm32g4xx_hal.o(.text.HAL_Delay))
 <BR><BR>[Stack]<UL><LI>Max Depth = 16<LI>Call Chain = HAL_Delay
 </UL>
-<BR>[Calls]<UL><LI><a href="#[d2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GetTick
+<BR>[Calls]<UL><LI><a href="#[d1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GetTick
 </UL>
-<BR>[Called By]<UL><LI><a href="#[f7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;adc1_current_offset_calibrate
-</UL>
-
-<P><STRONG><a name="[ec]"></a>HAL_FDCAN_ActivateNotification</STRONG> (Thumb, 268 bytes, Stack size 8 bytes, stm32g4xx_hal_fdcan.o(.text.HAL_FDCAN_ActivateNotification))
-<BR><BR>[Stack]<UL><LI>Max Depth = 8<LI>Call Chain = HAL_FDCAN_ActivateNotification
-</UL>
-<BR>[Called By]<UL><LI><a href="#[c8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_FDCAN1_Init
+<BR>[Called By]<UL><LI><a href="#[ee]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;adc1_current_offset_calibrate
 </UL>
 
-<P><STRONG><a name="[e9]"></a>HAL_FDCAN_ConfigFilter</STRONG> (Thumb, 96 bytes, Stack size 8 bytes, stm32g4xx_hal_fdcan.o(.text.HAL_FDCAN_ConfigFilter))
-<BR><BR>[Stack]<UL><LI>Max Depth = 8<LI>Call Chain = HAL_FDCAN_ConfigFilter
-</UL>
-<BR>[Called By]<UL><LI><a href="#[c8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_FDCAN1_Init
+<P><STRONG><a name="[d1]"></a>HAL_GetTick</STRONG> (Thumb, 12 bytes, Stack size 0 bytes, stm32g4xx_hal.o(.text.HAL_GetTick))
+<BR><BR>[Called By]<UL><LI><a href="#[d0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_Delay
 </UL>
 
-<P><STRONG><a name="[ea]"></a>HAL_FDCAN_ConfigGlobalFilter</STRONG> (Thumb, 64 bytes, Stack size 8 bytes, stm32g4xx_hal_fdcan.o(.text.HAL_FDCAN_ConfigGlobalFilter))
-<BR><BR>[Stack]<UL><LI>Max Depth = 8<LI>Call Chain = HAL_FDCAN_ConfigGlobalFilter
-</UL>
-<BR>[Called By]<UL><LI><a href="#[c8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_FDCAN1_Init
-</UL>
-
-<P><STRONG><a name="[d3]"></a>HAL_FDCAN_Init</STRONG> (Thumb, 592 bytes, Stack size 24 bytes, stm32g4xx_hal_fdcan.o(.text.HAL_FDCAN_Init))
-<BR><BR>[Stack]<UL><LI>Max Depth = 112<LI>Call Chain = HAL_FDCAN_Init &rArr; HAL_FDCAN_MspInit &rArr; HAL_GPIO_Init
-</UL>
-<BR>[Calls]<UL><LI><a href="#[d2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GetTick
-<LI><a href="#[d4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_FDCAN_MspInit
-</UL>
-<BR>[Called By]<UL><LI><a href="#[c8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_FDCAN1_Init
-</UL>
-
-<P><STRONG><a name="[d4]"></a>HAL_FDCAN_MspInit</STRONG> (Thumb, 142 bytes, Stack size 32 bytes, fdcan.o(.text.HAL_FDCAN_MspInit))
-<BR><BR>[Stack]<UL><LI>Max Depth = 88<LI>Call Chain = HAL_FDCAN_MspInit &rArr; HAL_GPIO_Init
-</UL>
-<BR>[Calls]<UL><LI><a href="#[d7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_NVIC_EnableIRQ
-<LI><a href="#[d6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_NVIC_SetPriority
-<LI><a href="#[d5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GPIO_Init
-</UL>
-<BR>[Called By]<UL><LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_FDCAN_Init
-</UL>
-
-<P><STRONG><a name="[eb]"></a>HAL_FDCAN_Start</STRONG> (Thumb, 44 bytes, Stack size 0 bytes, stm32g4xx_hal_fdcan.o(.text.HAL_FDCAN_Start))
-<BR><BR>[Called By]<UL><LI><a href="#[c8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_FDCAN1_Init
-</UL>
-
-<P><STRONG><a name="[d5]"></a>HAL_GPIO_Init</STRONG> (Thumb, 478 bytes, Stack size 56 bytes, stm32g4xx_hal_gpio.o(.text.HAL_GPIO_Init))
-<BR><BR>[Stack]<UL><LI>Max Depth = 56<LI>Call Chain = HAL_GPIO_Init
-</UL>
-<BR>[Called By]<UL><LI><a href="#[d4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_FDCAN_MspInit
-</UL>
-
-<P><STRONG><a name="[d2]"></a>HAL_GetTick</STRONG> (Thumb, 12 bytes, Stack size 0 bytes, stm32g4xx_hal.o(.text.HAL_GetTick))
-<BR><BR>[Called By]<UL><LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_FDCAN_Init
-<LI><a href="#[d1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_Delay
-</UL>
-
-<P><STRONG><a name="[f1]"></a>HAL_IncTick</STRONG> (Thumb, 26 bytes, Stack size 0 bytes, stm32g4xx_hal.o(.text.HAL_IncTick))
+<P><STRONG><a name="[e6]"></a>HAL_IncTick</STRONG> (Thumb, 26 bytes, Stack size 0 bytes, stm32g4xx_hal.o(.text.HAL_IncTick))
 <BR><BR>[Called By]<UL><LI><a href="#[9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;SysTick_Handler
 </UL>
 
 <P><STRONG><a name="[c5]"></a>HAL_Init</STRONG> (Thumb, 30 bytes, Stack size 8 bytes, stm32g4xx_hal.o(.text.HAL_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 32<LI>Call Chain = HAL_Init &rArr; HAL_InitTick &rArr; HAL_NVIC_SetPriority
 </UL>
-<BR>[Calls]<UL><LI><a href="#[d9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_InitTick
-<LI><a href="#[d8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_NVIC_SetPriorityGrouping
-<LI><a href="#[da]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_MspInit
+<BR>[Calls]<UL><LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_InitTick
+<LI><a href="#[d2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_NVIC_SetPriorityGrouping
+<LI><a href="#[d4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_MspInit
 </UL>
 <BR>[Called By]<UL><LI><a href="#[c4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;FOC_Init
 </UL>
 
-<P><STRONG><a name="[d9]"></a>HAL_InitTick</STRONG> (Thumb, 80 bytes, Stack size 16 bytes, stm32g4xx_hal.o(.text.HAL_InitTick))
+<P><STRONG><a name="[d3]"></a>HAL_InitTick</STRONG> (Thumb, 80 bytes, Stack size 16 bytes, stm32g4xx_hal.o(.text.HAL_InitTick))
 <BR><BR>[Stack]<UL><LI>Max Depth = 24<LI>Call Chain = HAL_InitTick &rArr; HAL_NVIC_SetPriority
 </UL>
-<BR>[Calls]<UL><LI><a href="#[db]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_SYSTICK_Config
+<BR>[Calls]<UL><LI><a href="#[d5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_SYSTICK_Config
 <LI><a href="#[d6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_NVIC_SetPriority
 </UL>
 <BR>[Called By]<UL><LI><a href="#[c5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_Init
 <LI><a href="#[c6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;SystemClock_Config
 </UL>
 
-<P><STRONG><a name="[da]"></a>HAL_MspInit</STRONG> (Thumb, 52 bytes, Stack size 8 bytes, stm32g4xx_hal_msp.o(.text.HAL_MspInit))
+<P><STRONG><a name="[d4]"></a>HAL_MspInit</STRONG> (Thumb, 52 bytes, Stack size 8 bytes, stm32g4xx_hal_msp.o(.text.HAL_MspInit))
 <BR><BR>[Stack]<UL><LI>Max Depth = 8<LI>Call Chain = HAL_MspInit
 </UL>
-<BR>[Calls]<UL><LI><a href="#[dc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_PWREx_DisableUCPDDeadBattery
+<BR>[Calls]<UL><LI><a href="#[d7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_PWREx_DisableUCPDDeadBattery
 </UL>
 <BR>[Called By]<UL><LI><a href="#[c5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_Init
-</UL>
-
-<P><STRONG><a name="[d7]"></a>HAL_NVIC_EnableIRQ</STRONG> (Thumb, 34 bytes, Stack size 0 bytes, stm32g4xx_hal_cortex.o(.text.HAL_NVIC_EnableIRQ))
-<BR><BR>[Called By]<UL><LI><a href="#[d4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_FDCAN_MspInit
 </UL>
 
 <P><STRONG><a name="[d6]"></a>HAL_NVIC_SetPriority</STRONG> (Thumb, 86 bytes, Stack size 8 bytes, stm32g4xx_hal_cortex.o(.text.HAL_NVIC_SetPriority))
 <BR><BR>[Stack]<UL><LI>Max Depth = 8<LI>Call Chain = HAL_NVIC_SetPriority
 </UL>
-<BR>[Called By]<UL><LI><a href="#[d9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_InitTick
-<LI><a href="#[d4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_FDCAN_MspInit
+<BR>[Called By]<UL><LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_InitTick
 </UL>
 
-<P><STRONG><a name="[d8]"></a>HAL_NVIC_SetPriorityGrouping</STRONG> (Thumb, 32 bytes, Stack size 0 bytes, stm32g4xx_hal_cortex.o(.text.HAL_NVIC_SetPriorityGrouping))
+<P><STRONG><a name="[d2]"></a>HAL_NVIC_SetPriorityGrouping</STRONG> (Thumb, 32 bytes, Stack size 0 bytes, stm32g4xx_hal_cortex.o(.text.HAL_NVIC_SetPriorityGrouping))
 <BR><BR>[Called By]<UL><LI><a href="#[c5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_Init
 </UL>
 
-<P><STRONG><a name="[dc]"></a>HAL_PWREx_DisableUCPDDeadBattery</STRONG> (Thumb, 18 bytes, Stack size 0 bytes, stm32g4xx_hal_pwr_ex.o(.text.HAL_PWREx_DisableUCPDDeadBattery))
-<BR><BR>[Called By]<UL><LI><a href="#[da]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_MspInit
+<P><STRONG><a name="[d7]"></a>HAL_PWREx_DisableUCPDDeadBattery</STRONG> (Thumb, 18 bytes, Stack size 0 bytes, stm32g4xx_hal_pwr_ex.o(.text.HAL_PWREx_DisableUCPDDeadBattery))
+<BR><BR>[Called By]<UL><LI><a href="#[d4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_MspInit
 </UL>
 
-<P><STRONG><a name="[db]"></a>HAL_SYSTICK_Config</STRONG> (Thumb, 44 bytes, Stack size 0 bytes, stm32g4xx_hal_cortex.o(.text.HAL_SYSTICK_Config))
-<BR><BR>[Called By]<UL><LI><a href="#[d9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_InitTick
+<P><STRONG><a name="[d5]"></a>HAL_SYSTICK_Config</STRONG> (Thumb, 44 bytes, Stack size 0 bytes, stm32g4xx_hal_cortex.o(.text.HAL_SYSTICK_Config))
+<BR><BR>[Called By]<UL><LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_InitTick
 </UL>
 
 <P><STRONG><a name="[2]"></a>HardFault_Handler</STRONG> (Thumb, 2 bytes, Stack size 0 bytes, stm32g4xx_it.o(.text.HardFault_Handler))
@@ -1266,123 +1215,108 @@ Global Symbols
 </UL>
 <BR>[Address Reference Count : 1]<UL><LI> startup_stm32g431xx.o(RESET)
 </UL>
-<P><STRONG><a name="[e4]"></a>LL_ADC_CommonInit</STRONG> (Thumb, 78 bytes, Stack size 8 bytes, stm32g4xx_ll_adc.o(.text.LL_ADC_CommonInit))
+<P><STRONG><a name="[df]"></a>LL_ADC_CommonInit</STRONG> (Thumb, 78 bytes, Stack size 8 bytes, stm32g4xx_ll_adc.o(.text.LL_ADC_CommonInit))
 <BR><BR>[Stack]<UL><LI>Max Depth = 8<LI>Call Chain = LL_ADC_CommonInit
 </UL>
-<BR>[Called By]<UL><LI><a href="#[cb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_ADC1_Init
+<BR>[Called By]<UL><LI><a href="#[ca]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_ADC1_Init
 </UL>
 
-<P><STRONG><a name="[e5]"></a>LL_ADC_INJ_Init</STRONG> (Thumb, 70 bytes, Stack size 8 bytes, stm32g4xx_ll_adc.o(.text.LL_ADC_INJ_Init))
+<P><STRONG><a name="[e0]"></a>LL_ADC_INJ_Init</STRONG> (Thumb, 70 bytes, Stack size 8 bytes, stm32g4xx_ll_adc.o(.text.LL_ADC_INJ_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 8<LI>Call Chain = LL_ADC_INJ_Init
 </UL>
-<BR>[Called By]<UL><LI><a href="#[cb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_ADC1_Init
+<BR>[Called By]<UL><LI><a href="#[ca]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_ADC1_Init
 </UL>
 
-<P><STRONG><a name="[e2]"></a>LL_ADC_Init</STRONG> (Thumb, 40 bytes, Stack size 0 bytes, stm32g4xx_ll_adc.o(.text.LL_ADC_Init))
-<BR><BR>[Called By]<UL><LI><a href="#[cb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_ADC1_Init
+<P><STRONG><a name="[dd]"></a>LL_ADC_Init</STRONG> (Thumb, 40 bytes, Stack size 0 bytes, stm32g4xx_ll_adc.o(.text.LL_ADC_Init))
+<BR><BR>[Called By]<UL><LI><a href="#[ca]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_ADC1_Init
 </UL>
 
-<P><STRONG><a name="[e3]"></a>LL_ADC_REG_Init</STRONG> (Thumb, 82 bytes, Stack size 16 bytes, stm32g4xx_ll_adc.o(.text.LL_ADC_REG_Init))
+<P><STRONG><a name="[de]"></a>LL_ADC_REG_Init</STRONG> (Thumb, 82 bytes, Stack size 16 bytes, stm32g4xx_ll_adc.o(.text.LL_ADC_REG_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 16<LI>Call Chain = LL_ADC_REG_Init
 </UL>
-<BR>[Called By]<UL><LI><a href="#[cb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_ADC1_Init
+<BR>[Called By]<UL><LI><a href="#[ca]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_ADC1_Init
 </UL>
 
-<P><STRONG><a name="[e6]"></a>LL_DMA_Init</STRONG> (Thumb, 124 bytes, Stack size 24 bytes, stm32g4xx_ll_dma.o(.text.LL_DMA_Init))
+<P><STRONG><a name="[e1]"></a>LL_DMA_Init</STRONG> (Thumb, 124 bytes, Stack size 24 bytes, stm32g4xx_ll_dma.o(.text.LL_DMA_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 24<LI>Call Chain = LL_DMA_Init
 </UL>
-<BR>[Called By]<UL><LI><a href="#[cb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_ADC1_Init
+<BR>[Called By]<UL><LI><a href="#[ca]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_ADC1_Init
 </UL>
 
-<P><STRONG><a name="[e1]"></a>LL_GPIO_Init</STRONG> (Thumb, 222 bytes, Stack size 36 bytes, stm32g4xx_ll_gpio.o(.text.LL_GPIO_Init))
+<P><STRONG><a name="[dc]"></a>LL_GPIO_Init</STRONG> (Thumb, 222 bytes, Stack size 36 bytes, stm32g4xx_ll_gpio.o(.text.LL_GPIO_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 36<LI>Call Chain = LL_GPIO_Init
 </UL>
-<BR>[Called By]<UL><LI><a href="#[cd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_USART3_UART_Init
-<LI><a href="#[c9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM1_Init
-<LI><a href="#[cc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_SPI1_Init
-<LI><a href="#[cb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_ADC1_Init
+<BR>[Called By]<UL><LI><a href="#[cc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_USART3_UART_Init
+<LI><a href="#[c8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM1_Init
+<LI><a href="#[cb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_SPI1_Init
+<LI><a href="#[ca]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_ADC1_Init
 <LI><a href="#[c7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_GPIO_Init
 </UL>
 
-<P><STRONG><a name="[df]"></a>LL_RCC_GetUARTClockFreq</STRONG> (Thumb, 304 bytes, Stack size 0 bytes, stm32g4xx_ll_rcc.o(.text.LL_RCC_GetUARTClockFreq))
-<BR><BR>[Called By]<UL><LI><a href="#[dd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_USART_Init
+<P><STRONG><a name="[da]"></a>LL_RCC_GetUARTClockFreq</STRONG> (Thumb, 300 bytes, Stack size 0 bytes, stm32g4xx_ll_rcc.o(.text.LL_RCC_GetUARTClockFreq))
+<BR><BR>[Called By]<UL><LI><a href="#[d8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_USART_Init
 </UL>
 
-<P><STRONG><a name="[de]"></a>LL_RCC_GetUSARTClockFreq</STRONG> (Thumb, 500 bytes, Stack size 0 bytes, stm32g4xx_ll_rcc.o(.text.LL_RCC_GetUSARTClockFreq))
-<BR><BR>[Called By]<UL><LI><a href="#[dd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_USART_Init
+<P><STRONG><a name="[d9]"></a>LL_RCC_GetUSARTClockFreq</STRONG> (Thumb, 484 bytes, Stack size 0 bytes, stm32g4xx_ll_rcc.o(.text.LL_RCC_GetUSARTClockFreq))
+<BR><BR>[Called By]<UL><LI><a href="#[d8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_USART_Init
 </UL>
 
-<P><STRONG><a name="[ed]"></a>LL_SPI_Init</STRONG> (Thumb, 140 bytes, Stack size 32 bytes, stm32g4xx_ll_spi.o(.text.LL_SPI_Init))
+<P><STRONG><a name="[e2]"></a>LL_SPI_Init</STRONG> (Thumb, 140 bytes, Stack size 32 bytes, stm32g4xx_ll_spi.o(.text.LL_SPI_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 32<LI>Call Chain = LL_SPI_Init
 </UL>
-<BR>[Called By]<UL><LI><a href="#[cc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_SPI1_Init
+<BR>[Called By]<UL><LI><a href="#[cb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_SPI1_Init
 </UL>
 
-<P><STRONG><a name="[f2]"></a>LL_SetSystemCoreClock</STRONG> (Thumb, 12 bytes, Stack size 0 bytes, stm32g4xx_ll_utils.o(.text.LL_SetSystemCoreClock))
+<P><STRONG><a name="[e7]"></a>LL_SetSystemCoreClock</STRONG> (Thumb, 12 bytes, Stack size 0 bytes, stm32g4xx_ll_utils.o(.text.LL_SetSystemCoreClock))
 <BR><BR>[Called By]<UL><LI><a href="#[c6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;SystemClock_Config
 </UL>
 
-<P><STRONG><a name="[f0]"></a>LL_TIM_BDTR_Init</STRONG> (Thumb, 156 bytes, Stack size 16 bytes, stm32g4xx_ll_tim.o(.text.LL_TIM_BDTR_Init))
+<P><STRONG><a name="[e5]"></a>LL_TIM_BDTR_Init</STRONG> (Thumb, 156 bytes, Stack size 16 bytes, stm32g4xx_ll_tim.o(.text.LL_TIM_BDTR_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 16<LI>Call Chain = LL_TIM_BDTR_Init
 </UL>
-<BR>[Called By]<UL><LI><a href="#[c9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM1_Init
+<BR>[Called By]<UL><LI><a href="#[c8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM1_Init
 </UL>
 
-<P><STRONG><a name="[ee]"></a>LL_TIM_Init</STRONG> (Thumb, 278 bytes, Stack size 0 bytes, stm32g4xx_ll_tim.o(.text.LL_TIM_Init))
-<BR><BR>[Called By]<UL><LI><a href="#[d0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM4_Init
-<LI><a href="#[cf]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM3_Init
-<LI><a href="#[ca]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM15_Init
-<LI><a href="#[c9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM1_Init
+<P><STRONG><a name="[e3]"></a>LL_TIM_Init</STRONG> (Thumb, 278 bytes, Stack size 0 bytes, stm32g4xx_ll_tim.o(.text.LL_TIM_Init))
+<BR><BR>[Called By]<UL><LI><a href="#[cf]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM4_Init
+<LI><a href="#[ce]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM3_Init
+<LI><a href="#[c9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM15_Init
+<LI><a href="#[c8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM1_Init
 </UL>
 
-<P><STRONG><a name="[ef]"></a>LL_TIM_OC_Init</STRONG> (Thumb, 860 bytes, Stack size 24 bytes, stm32g4xx_ll_tim.o(.text.LL_TIM_OC_Init))
+<P><STRONG><a name="[e4]"></a>LL_TIM_OC_Init</STRONG> (Thumb, 860 bytes, Stack size 24 bytes, stm32g4xx_ll_tim.o(.text.LL_TIM_OC_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 24<LI>Call Chain = LL_TIM_OC_Init
 </UL>
-<BR>[Called By]<UL><LI><a href="#[ca]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM15_Init
-<LI><a href="#[c9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM1_Init
+<BR>[Called By]<UL><LI><a href="#[c9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM15_Init
+<LI><a href="#[c8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_TIM1_Init
 </UL>
 
-<P><STRONG><a name="[dd]"></a>LL_USART_Init</STRONG> (Thumb, 264 bytes, Stack size 16 bytes, stm32g4xx_ll_usart.o(.text.LL_USART_Init))
+<P><STRONG><a name="[d8]"></a>LL_USART_Init</STRONG> (Thumb, 264 bytes, Stack size 16 bytes, stm32g4xx_ll_usart.o(.text.LL_USART_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 16<LI>Call Chain = LL_USART_Init
 </UL>
-<BR>[Calls]<UL><LI><a href="#[df]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_RCC_GetUARTClockFreq
-<LI><a href="#[de]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_RCC_GetUSARTClockFreq
+<BR>[Calls]<UL><LI><a href="#[da]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_RCC_GetUARTClockFreq
+<LI><a href="#[d9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_RCC_GetUSARTClockFreq
 </UL>
-<BR>[Called By]<UL><LI><a href="#[cd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_USART3_UART_Init
+<BR>[Called By]<UL><LI><a href="#[cc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_USART3_UART_Init
 </UL>
 
-<P><STRONG><a name="[cb]"></a>MX_ADC1_Init</STRONG> (Thumb, 726 bytes, Stack size 176 bytes, adc.o(.text.MX_ADC1_Init))
+<P><STRONG><a name="[ca]"></a>MX_ADC1_Init</STRONG> (Thumb, 726 bytes, Stack size 176 bytes, adc.o(.text.MX_ADC1_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 212 + Unknown Stack Size
 <LI>Call Chain = MX_ADC1_Init &rArr; LL_GPIO_Init
 </UL>
-<BR>[Calls]<UL><LI><a href="#[e6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_DMA_Init
-<LI><a href="#[e5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_ADC_INJ_Init
-<LI><a href="#[e4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_ADC_CommonInit
-<LI><a href="#[e3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_ADC_REG_Init
-<LI><a href="#[e2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_ADC_Init
-<LI><a href="#[e1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_GPIO_Init
-<LI><a href="#[e0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_memclr4
+<BR>[Calls]<UL><LI><a href="#[e1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_DMA_Init
+<LI><a href="#[e0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_ADC_INJ_Init
+<LI><a href="#[df]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_ADC_CommonInit
+<LI><a href="#[de]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_ADC_REG_Init
+<LI><a href="#[dd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_ADC_Init
+<LI><a href="#[dc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_GPIO_Init
+<LI><a href="#[db]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_memclr4
 </UL>
 <BR>[Called By]<UL><LI><a href="#[c4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;FOC_Init
 </UL>
 
-<P><STRONG><a name="[ce]"></a>MX_CORDIC_Init</STRONG> (Thumb, 62 bytes, Stack size 4 bytes, cordic.o(.text.MX_CORDIC_Init))
+<P><STRONG><a name="[cd]"></a>MX_CORDIC_Init</STRONG> (Thumb, 62 bytes, Stack size 4 bytes, cordic.o(.text.MX_CORDIC_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 4<LI>Call Chain = MX_CORDIC_Init
-</UL>
-<BR>[Called By]<UL><LI><a href="#[c4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;FOC_Init
-</UL>
-
-<P><STRONG><a name="[c8]"></a>MX_FDCAN1_Init</STRONG> (Thumb, 244 bytes, Stack size 56 bytes, fdcan.o(.text.MX_FDCAN1_Init))
-<BR><BR>[Stack]<UL><LI>Max Depth = 216 + Unknown Stack Size
-<LI>Call Chain = MX_FDCAN1_Init &rArr; debug_log &rArr; vsnprintf &rArr; _printf_char_common &rArr; __printf
-</UL>
-<BR>[Calls]<UL><LI><a href="#[ec]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_FDCAN_ActivateNotification
-<LI><a href="#[eb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_FDCAN_Start
-<LI><a href="#[ea]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_FDCAN_ConfigGlobalFilter
-<LI><a href="#[e9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_FDCAN_ConfigFilter
-<LI><a href="#[e7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Error_Handler
-<LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_FDCAN_Init
-<LI><a href="#[e8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;debug_log
 </UL>
 <BR>[Called By]<UL><LI><a href="#[c4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;FOC_Init
 </UL>
@@ -1390,65 +1324,65 @@ Global Symbols
 <P><STRONG><a name="[c7]"></a>MX_GPIO_Init</STRONG> (Thumb, 118 bytes, Stack size 40 bytes, gpio.o(.text.MX_GPIO_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 76<LI>Call Chain = MX_GPIO_Init &rArr; LL_GPIO_Init
 </UL>
-<BR>[Calls]<UL><LI><a href="#[e1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_GPIO_Init
+<BR>[Calls]<UL><LI><a href="#[dc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_GPIO_Init
 </UL>
 <BR>[Called By]<UL><LI><a href="#[c4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;FOC_Init
 </UL>
 
-<P><STRONG><a name="[cc]"></a>MX_SPI1_Init</STRONG> (Thumb, 250 bytes, Stack size 104 bytes, spi.o(.text.MX_SPI1_Init))
-<BR><BR>[Stack]<UL><LI>Max Depth = 140 + Unknown Stack Size
+<P><STRONG><a name="[cb]"></a>MX_SPI1_Init</STRONG> (Thumb, 248 bytes, Stack size 96 bytes, spi.o(.text.MX_SPI1_Init))
+<BR><BR>[Stack]<UL><LI>Max Depth = 132 + Unknown Stack Size
 <LI>Call Chain = MX_SPI1_Init &rArr; LL_GPIO_Init
 </UL>
-<BR>[Calls]<UL><LI><a href="#[ed]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_SPI_Init
-<LI><a href="#[e1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_GPIO_Init
-<LI><a href="#[e0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_memclr4
+<BR>[Calls]<UL><LI><a href="#[e2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_SPI_Init
+<LI><a href="#[dc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_GPIO_Init
+<LI><a href="#[db]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_memclr4
 </UL>
 <BR>[Called By]<UL><LI><a href="#[c4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;FOC_Init
 </UL>
 
-<P><STRONG><a name="[ca]"></a>MX_TIM15_Init</STRONG> (Thumb, 214 bytes, Stack size 80 bytes, tim.o(.text.MX_TIM15_Init))
+<P><STRONG><a name="[c9]"></a>MX_TIM15_Init</STRONG> (Thumb, 214 bytes, Stack size 80 bytes, tim.o(.text.MX_TIM15_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 104<LI>Call Chain = MX_TIM15_Init &rArr; LL_TIM_OC_Init
 </UL>
-<BR>[Calls]<UL><LI><a href="#[ef]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_TIM_OC_Init
-<LI><a href="#[ee]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_TIM_Init
+<BR>[Calls]<UL><LI><a href="#[e4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_TIM_OC_Init
+<LI><a href="#[e3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_TIM_Init
 </UL>
 <BR>[Called By]<UL><LI><a href="#[c4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;FOC_Init
 </UL>
 
-<P><STRONG><a name="[c9]"></a>MX_TIM1_Init</STRONG> (Thumb, 522 bytes, Stack size 160 bytes, tim.o(.text.MX_TIM1_Init))
+<P><STRONG><a name="[c8]"></a>MX_TIM1_Init</STRONG> (Thumb, 522 bytes, Stack size 160 bytes, tim.o(.text.MX_TIM1_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 196 + Unknown Stack Size
 <LI>Call Chain = MX_TIM1_Init &rArr; LL_GPIO_Init
 </UL>
-<BR>[Calls]<UL><LI><a href="#[f0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_TIM_BDTR_Init
-<LI><a href="#[ef]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_TIM_OC_Init
-<LI><a href="#[ee]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_TIM_Init
-<LI><a href="#[e1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_GPIO_Init
-<LI><a href="#[e0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_memclr4
+<BR>[Calls]<UL><LI><a href="#[e5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_TIM_BDTR_Init
+<LI><a href="#[e4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_TIM_OC_Init
+<LI><a href="#[e3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_TIM_Init
+<LI><a href="#[dc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_GPIO_Init
+<LI><a href="#[db]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_memclr4
 </UL>
 <BR>[Called By]<UL><LI><a href="#[c4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;FOC_Init
 </UL>
 
-<P><STRONG><a name="[cf]"></a>MX_TIM3_Init</STRONG> (Thumb, 144 bytes, Stack size 32 bytes, tim.o(.text.MX_TIM3_Init))
+<P><STRONG><a name="[ce]"></a>MX_TIM3_Init</STRONG> (Thumb, 144 bytes, Stack size 32 bytes, tim.o(.text.MX_TIM3_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 32<LI>Call Chain = MX_TIM3_Init
 </UL>
-<BR>[Calls]<UL><LI><a href="#[ee]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_TIM_Init
+<BR>[Calls]<UL><LI><a href="#[e3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_TIM_Init
 </UL>
 <BR>[Called By]<UL><LI><a href="#[c4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;FOC_Init
 </UL>
 
-<P><STRONG><a name="[d0]"></a>MX_TIM4_Init</STRONG> (Thumb, 144 bytes, Stack size 32 bytes, tim.o(.text.MX_TIM4_Init))
+<P><STRONG><a name="[cf]"></a>MX_TIM4_Init</STRONG> (Thumb, 144 bytes, Stack size 32 bytes, tim.o(.text.MX_TIM4_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 32<LI>Call Chain = MX_TIM4_Init
 </UL>
-<BR>[Calls]<UL><LI><a href="#[ee]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_TIM_Init
+<BR>[Calls]<UL><LI><a href="#[e3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_TIM_Init
 </UL>
 <BR>[Called By]<UL><LI><a href="#[c4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;FOC_Init
 </UL>
 
-<P><STRONG><a name="[cd]"></a>MX_USART3_UART_Init</STRONG> (Thumb, 540 bytes, Stack size 96 bytes, usart.o(.text.MX_USART3_UART_Init))
+<P><STRONG><a name="[cc]"></a>MX_USART3_UART_Init</STRONG> (Thumb, 540 bytes, Stack size 96 bytes, usart.o(.text.MX_USART3_UART_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 132<LI>Call Chain = MX_USART3_UART_Init &rArr; LL_GPIO_Init
 </UL>
-<BR>[Calls]<UL><LI><a href="#[dd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_USART_Init
-<LI><a href="#[e1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_GPIO_Init
+<BR>[Calls]<UL><LI><a href="#[d8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_USART_Init
+<LI><a href="#[dc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_GPIO_Init
 </UL>
 <BR>[Called By]<UL><LI><a href="#[c4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;FOC_Init
 </UL>
@@ -1474,16 +1408,16 @@ Global Symbols
 <BR>[Address Reference Count : 1]<UL><LI> startup_stm32g431xx.o(RESET)
 </UL>
 <P><STRONG><a name="[9]"></a>SysTick_Handler</STRONG> (Thumb, 4 bytes, Stack size 0 bytes, stm32g4xx_it.o(.text.SysTick_Handler))
-<BR><BR>[Calls]<UL><LI><a href="#[f1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_IncTick
+<BR><BR>[Calls]<UL><LI><a href="#[e6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_IncTick
 </UL>
 <BR>[Address Reference Count : 1]<UL><LI> startup_stm32g431xx.o(RESET)
 </UL>
 <P><STRONG><a name="[c6]"></a>SystemClock_Config</STRONG> (Thumb, 376 bytes, Stack size 16 bytes, foc_init.o(.text.SystemClock_Config))
 <BR><BR>[Stack]<UL><LI>Max Depth = 40<LI>Call Chain = SystemClock_Config &rArr; HAL_InitTick &rArr; HAL_NVIC_SetPriority
 </UL>
-<BR>[Calls]<UL><LI><a href="#[d9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_InitTick
-<LI><a href="#[f2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_SetSystemCoreClock
-<LI><a href="#[e7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Error_Handler
+<BR>[Calls]<UL><LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_InitTick
+<LI><a href="#[e7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LL_SetSystemCoreClock
+<LI><a href="#[e8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Error_Handler
 </UL>
 <BR>[Called By]<UL><LI><a href="#[c4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;FOC_Init
 </UL>
@@ -1492,10 +1426,10 @@ Global Symbols
 <BR>[Address Reference Count : 1]<UL><LI> startup_stm32g431xx.o(.text)
 </UL>
 <P><STRONG><a name="[21]"></a>TIM1_BRK_TIM15_IRQHandler</STRONG> (Thumb, 38 bytes, Stack size 8 bytes, foc_sys.o(.text.TIM1_BRK_TIM15_IRQHandler))
-<BR><BR>[Stack]<UL><LI>Max Depth = 16<LI>Call Chain = TIM1_BRK_TIM15_IRQHandler &rArr; encoder_read_electrical_angle
+<BR><BR>[Stack]<UL><LI>Max Depth = 40<LI>Call Chain = TIM1_BRK_TIM15_IRQHandler &rArr; encoder_read_electrical_angle &rArr; foc_encoder_calibration_linearize
 </UL>
-<BR>[Calls]<UL><LI><a href="#[f3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_read_electrical_angle
-<LI><a href="#[f4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_read_mechanical_angle
+<BR>[Calls]<UL><LI><a href="#[e9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_read_electrical_angle
+<LI><a href="#[ea]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_read_mechanical_angle
 </UL>
 <BR>[Address Reference Count : 1]<UL><LI> startup_stm32g431xx.o(RESET)
 </UL>
@@ -1503,7 +1437,7 @@ Global Symbols
 <BR>[Address Reference Count : 1]<UL><LI> startup_stm32g431xx.o(RESET)
 </UL>
 <P><STRONG><a name="[27]"></a>TIM4_IRQHandler</STRONG> (Thumb, 26 bytes, Stack size 0 bytes, foc_sys.o(.text.TIM4_IRQHandler))
-<BR><BR>[Calls]<UL><LI><a href="#[f5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_control
+<BR><BR>[Calls]<UL><LI><a href="#[eb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_control
 </UL>
 <BR>[Address Reference Count : 1]<UL><LI> startup_stm32g431xx.o(RESET)
 </UL>
@@ -1511,8 +1445,8 @@ Global Symbols
 <BR><BR>[Stack]<UL><LI>Max Depth = 492 + Unknown Stack Size
 <LI>Call Chain = USART3_IRQHandler &rArr; parse_received_data &rArr; __hardfp_strtof &rArr; __strtof_int &rArr; __strtod_int &rArr; _local_sscanf &rArr; _scanf_real &rArr; _scanf_really_real &rArr; _fp_value &rArr; _btod_etento &rArr; _btod_emul &rArr; _e2e
 </UL>
-<BR>[Calls]<UL><LI><a href="#[f6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;parse_received_data
-<LI><a href="#[e8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;debug_log
+<BR>[Calls]<UL><LI><a href="#[ed]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;parse_received_data
+<LI><a href="#[ec]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;debug_log
 </UL>
 <BR>[Address Reference Count : 1]<UL><LI> startup_stm32g431xx.o(RESET)
 </UL>
@@ -1523,116 +1457,156 @@ Global Symbols
 </UL>
 <BR>[Address Reference Count : 1]<UL><LI> startup_stm32g431xx.o(RESET)
 </UL>
-<P><STRONG><a name="[f7]"></a>adc1_current_offset_calibrate</STRONG> (Thumb, 460 bytes, Stack size 32 bytes, adc.o(.text.adc1_current_offset_calibrate))
+<P><STRONG><a name="[ee]"></a>adc1_current_offset_calibrate</STRONG> (Thumb, 472 bytes, Stack size 32 bytes, adc.o(.text.adc1_current_offset_calibrate))
 <BR><BR>[Stack]<UL><LI>Max Depth = 192 + Unknown Stack Size
 <LI>Call Chain = adc1_current_offset_calibrate &rArr; debug_log &rArr; vsnprintf &rArr; _printf_char_common &rArr; __printf
 </UL>
-<BR>[Calls]<UL><LI><a href="#[d1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_Delay
-<LI><a href="#[e8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;debug_log
-<LI><a href="#[f8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;bsp_pwm_stop
+<BR>[Calls]<UL><LI><a href="#[d0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_Delay
+<LI><a href="#[ec]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;debug_log
+<LI><a href="#[ef]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;bsp_pwm_stop
 </UL>
 <BR>[Called By]<UL><LI><a href="#[105]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_start_init
 </UL>
 
-<P><STRONG><a name="[103]"></a>adc1_enable_current_sampling</STRONG> (Thumb, 52 bytes, Stack size 0 bytes, adc.o(.text.adc1_enable_current_sampling))
+<P><STRONG><a name="[103]"></a>adc1_enable_current_sampling</STRONG> (Thumb, 72 bytes, Stack size 0 bytes, adc.o(.text.adc1_enable_current_sampling))
 <BR><BR>[Called By]<UL><LI><a href="#[102]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_start
 </UL>
 
 <P><STRONG><a name="[c3]"></a>adc1_process_injected_current_sample</STRONG> (Thumb, 96 bytes, Stack size 8 bytes, adc.o(.text.adc1_process_injected_current_sample))
-<BR><BR>[Stack]<UL><LI>Max Depth = 8<LI>Call Chain = adc1_process_injected_current_sample
+<BR><BR>[Stack]<UL><LI>Max Depth = 48<LI>Call Chain = adc1_process_injected_current_sample &rArr; foc_current_in_control
 </UL>
-<BR>[Calls]<UL><LI><a href="#[f9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_current_in_control
+<BR>[Calls]<UL><LI><a href="#[f0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_current_in_control
 </UL>
 <BR>[Called By]<UL><LI><a href="#[1b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;ADC1_2_IRQHandler
 </UL>
 
-<P><STRONG><a name="[fc]"></a>angle_normalize_360</STRONG> (Thumb, 152 bytes, Stack size 0 bytes, foc_conversion.o(.text.angle_normalize_360))
-<BR><BR>[Called By]<UL><LI><a href="#[f3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_read_electrical_angle
+<P><STRONG><a name="[f4]"></a>angle_normalize_360</STRONG> (Thumb, 152 bytes, Stack size 0 bytes, foc_conversion.o(.text.angle_normalize_360))
+<BR><BR>[Called By]<UL><LI><a href="#[f3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_encoder_calibration_linearize
+<LI><a href="#[e9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_read_electrical_angle
+</UL>
+
+<P><STRONG><a name="[ff]"></a>bsp_pwm_set_duty_four_phase</STRONG> (Thumb, 26 bytes, Stack size 0 bytes, tim.o(.text.bsp_pwm_set_duty_four_phase))
+<BR><BR>[Called By]<UL><LI><a href="#[f0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_current_in_control
 </UL>
 
 <P><STRONG><a name="[104]"></a>bsp_pwm_start</STRONG> (Thumb, 70 bytes, Stack size 0 bytes, tim.o(.text.bsp_pwm_start))
 <BR><BR>[Called By]<UL><LI><a href="#[102]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_start
 </UL>
 
-<P><STRONG><a name="[f8]"></a>bsp_pwm_stop</STRONG> (Thumb, 26 bytes, Stack size 0 bytes, tim.o(.text.bsp_pwm_stop))
-<BR><BR>[Called By]<UL><LI><a href="#[f7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;adc1_current_offset_calibrate
+<P><STRONG><a name="[ef]"></a>bsp_pwm_stop</STRONG> (Thumb, 26 bytes, Stack size 0 bytes, tim.o(.text.bsp_pwm_stop))
+<BR><BR>[Called By]<UL><LI><a href="#[ee]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;adc1_current_offset_calibrate
 <LI><a href="#[8a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
-<P><STRONG><a name="[e8]"></a>debug_log</STRONG> (Thumb, 276 bytes, Stack size 32 bytes, usart.o(.text.debug_log))
+<P><STRONG><a name="[ec]"></a>debug_log</STRONG> (Thumb, 276 bytes, Stack size 32 bytes, usart.o(.text.debug_log))
 <BR><BR>[Stack]<UL><LI>Max Depth = 160 + Unknown Stack Size
 <LI>Call Chain = debug_log &rArr; vsnprintf &rArr; _printf_char_common &rArr; __printf
 </UL>
 <BR>[Calls]<UL><LI><a href="#[90]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;vsnprintf
 </UL>
 <BR>[Called By]<UL><LI><a href="#[30]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;USART3_IRQHandler
-<LI><a href="#[c8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_FDCAN1_Init
-<LI><a href="#[f7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;adc1_current_offset_calibrate
+<LI><a href="#[ee]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;adc1_current_offset_calibrate
 <LI><a href="#[100]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_debug
 <LI><a href="#[105]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_start_init
-<LI><a href="#[fa]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_init
+<LI><a href="#[f1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_init
 <LI><a href="#[8a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
-<P><STRONG><a name="[fd]"></a>deg2rad</STRONG> (Thumb, 12 bytes, Stack size 0 bytes, foc_conversion.o(.text.deg2rad))
-<BR><BR>[Called By]<UL><LI><a href="#[f4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_read_mechanical_angle
+<P><STRONG><a name="[f5]"></a>deg2rad</STRONG> (Thumb, 12 bytes, Stack size 0 bytes, foc_conversion.o(.text.deg2rad))
+<BR><BR>[Called By]<UL><LI><a href="#[ea]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_read_mechanical_angle
 </UL>
 
-<P><STRONG><a name="[fa]"></a>encoder_init</STRONG> (Thumb, 44 bytes, Stack size 8 bytes, foc_encoder.o(.text.encoder_init))
+<P><STRONG><a name="[f1]"></a>encoder_init</STRONG> (Thumb, 48 bytes, Stack size 8 bytes, foc_encoder.o(.text.encoder_init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 168 + Unknown Stack Size
 <LI>Call Chain = encoder_init &rArr; debug_log &rArr; vsnprintf &rArr; _printf_char_common &rArr; __printf
 </UL>
-<BR>[Calls]<UL><LI><a href="#[e8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;debug_log
-<LI><a href="#[fb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_read_reg
+<BR>[Calls]<UL><LI><a href="#[ec]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;debug_log
+<LI><a href="#[f2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_read_raw_angle
 </UL>
 <BR>[Called By]<UL><LI><a href="#[8a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
-<P><STRONG><a name="[f3]"></a>encoder_read_electrical_angle</STRONG> (Thumb, 88 bytes, Stack size 8 bytes, foc_encoder.o(.text.encoder_read_electrical_angle))
-<BR><BR>[Stack]<UL><LI>Max Depth = 8<LI>Call Chain = encoder_read_electrical_angle
+<P><STRONG><a name="[e9]"></a>encoder_read_electrical_angle</STRONG> (Thumb, 116 bytes, Stack size 16 bytes, foc_encoder.o(.text.encoder_read_electrical_angle))
+<BR><BR>[Stack]<UL><LI>Max Depth = 32<LI>Call Chain = encoder_read_electrical_angle &rArr; foc_encoder_calibration_linearize
 </UL>
-<BR>[Calls]<UL><LI><a href="#[fc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;angle_normalize_360
-<LI><a href="#[fb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_read_reg
+<BR>[Calls]<UL><LI><a href="#[f4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;angle_normalize_360
+<LI><a href="#[f3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_encoder_calibration_linearize
+<LI><a href="#[f2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_read_raw_angle
 </UL>
 <BR>[Called By]<UL><LI><a href="#[21]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;TIM1_BRK_TIM15_IRQHandler
 </UL>
 
-<P><STRONG><a name="[f4]"></a>encoder_read_mechanical_angle</STRONG> (Thumb, 236 bytes, Stack size 8 bytes, foc_encoder.o(.text.encoder_read_mechanical_angle))
+<P><STRONG><a name="[ea]"></a>encoder_read_mechanical_angle</STRONG> (Thumb, 604 bytes, Stack size 8 bytes, foc_encoder.o(.text.encoder_read_mechanical_angle))
 <BR><BR>[Stack]<UL><LI>Max Depth = 8<LI>Call Chain = encoder_read_mechanical_angle
 </UL>
-<BR>[Calls]<UL><LI><a href="#[fd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;deg2rad
+<BR>[Calls]<UL><LI><a href="#[f5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;deg2rad
 </UL>
 <BR>[Called By]<UL><LI><a href="#[21]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;TIM1_BRK_TIM15_IRQHandler
 </UL>
 
-<P><STRONG><a name="[f5]"></a>foc_control</STRONG> (Thumb, 2 bytes, Stack size 0 bytes, foc_control.o(.text.foc_control))
+<P><STRONG><a name="[f2]"></a>encoder_read_raw_angle</STRONG> (Thumb, 132 bytes, Stack size 8 bytes, foc_encoder.o(.text.encoder_read_raw_angle))
+<BR><BR>[Stack]<UL><LI>Max Depth = 8<LI>Call Chain = encoder_read_raw_angle
+</UL>
+<BR>[Calls]<UL><LI><a href="#[f6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_read_reg
+</UL>
+<BR>[Called By]<UL><LI><a href="#[f1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_init
+<LI><a href="#[e9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_read_electrical_angle
+</UL>
+
+<P><STRONG><a name="[eb]"></a>foc_control</STRONG> (Thumb, 2 bytes, Stack size 0 bytes, foc_control.o(.text.foc_control))
 <BR><BR>[Called By]<UL><LI><a href="#[27]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;TIM4_IRQHandler
 </UL>
 
-<P><STRONG><a name="[fe]"></a>foc_control_set</STRONG> (Thumb, 98 bytes, Stack size 8 bytes, foc_communication.o(.text.foc_control_set))
+<P><STRONG><a name="[f7]"></a>foc_control_set</STRONG> (Thumb, 98 bytes, Stack size 8 bytes, foc_communication.o(.text.foc_control_set))
 <BR><BR>[Stack]<UL><LI>Max Depth = 8<LI>Call Chain = foc_control_set
 </UL>
-<BR>[Calls]<UL><LI><a href="#[ff]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;get_parsed_data
+<BR>[Calls]<UL><LI><a href="#[f8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;get_parsed_data
 </UL>
 <BR>[Called By]<UL><LI><a href="#[8a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
-<P><STRONG><a name="[f9]"></a>foc_current_in_control</STRONG> (Thumb, 2 bytes, Stack size 0 bytes, foc_control.o(.text.foc_current_in_control))
-<BR><BR>[Called By]<UL><LI><a href="#[c3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;adc1_process_injected_current_sample
+<P><STRONG><a name="[f0]"></a>foc_current_in_control</STRONG> (Thumb, 188 bytes, Stack size 40 bytes, foc_control.o(.text.foc_current_in_control))
+<BR><BR>[Stack]<UL><LI>Max Depth = 40<LI>Call Chain = foc_current_in_control
+</UL>
+<BR>[Calls]<UL><LI><a href="#[ff]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;bsp_pwm_set_duty_four_phase
+<LI><a href="#[f9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CORDIC_SinCos_Deg
+<LI><a href="#[fe]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;spwm_duty_calc
+<LI><a href="#[fd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;inv_park_transform_f32
+<LI><a href="#[fc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_iq_pid_calculate
+<LI><a href="#[fb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_id_pid_calculate
+<LI><a href="#[fa]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;park_transform
+</UL>
+<BR>[Called By]<UL><LI><a href="#[c3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;adc1_process_injected_current_sample
 </UL>
 
 <P><STRONG><a name="[106]"></a>foc_current_pi_init</STRONG> (Thumb, 44 bytes, Stack size 0 bytes, foc_setting.o(.text.foc_current_pi_init))
 <BR><BR>[Called By]<UL><LI><a href="#[105]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_start_init
 </UL>
 
-<P><STRONG><a name="[100]"></a>foc_debug</STRONG> (Thumb, 112 bytes, Stack size 80 bytes, foc_control.o(.text.foc_debug))
-<BR><BR>[Stack]<UL><LI>Max Depth = 240 + Unknown Stack Size
+<P><STRONG><a name="[100]"></a>foc_debug</STRONG> (Thumb, 32 bytes, Stack size 8 bytes, foc_control.o(.text.foc_debug))
+<BR><BR>[Stack]<UL><LI>Max Depth = 168 + Unknown Stack Size
 <LI>Call Chain = foc_debug &rArr; debug_log &rArr; vsnprintf &rArr; _printf_char_common &rArr; __printf
 </UL>
-<BR>[Calls]<UL><LI><a href="#[e8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;debug_log
+<BR>[Calls]<UL><LI><a href="#[ec]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;debug_log
 <LI><a href="#[101]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_f2d
 </UL>
 <BR>[Called By]<UL><LI><a href="#[8a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
+</UL>
+
+<P><STRONG><a name="[f3]"></a>foc_encoder_calibration_linearize</STRONG> (Thumb, 244 bytes, Stack size 16 bytes, foc_encoder_calibration.o(.text.foc_encoder_calibration_linearize))
+<BR><BR>[Stack]<UL><LI>Max Depth = 16<LI>Call Chain = foc_encoder_calibration_linearize
+</UL>
+<BR>[Calls]<UL><LI><a href="#[f4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;angle_normalize_360
+</UL>
+<BR>[Called By]<UL><LI><a href="#[e9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_read_electrical_angle
+</UL>
+
+<P><STRONG><a name="[fb]"></a>foc_id_pid_calculate</STRONG> (Thumb, 82 bytes, Stack size 0 bytes, foc_conversion.o(.text.foc_id_pid_calculate))
+<BR><BR>[Called By]<UL><LI><a href="#[f0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_current_in_control
+</UL>
+
+<P><STRONG><a name="[fc]"></a>foc_iq_pid_calculate</STRONG> (Thumb, 82 bytes, Stack size 0 bytes, foc_conversion.o(.text.foc_iq_pid_calculate))
+<BR><BR>[Called By]<UL><LI><a href="#[f0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_current_in_control
 </UL>
 
 <P><STRONG><a name="[108]"></a>foc_position_pi_init</STRONG> (Thumb, 30 bytes, Stack size 0 bytes, foc_setting.o(.text.foc_position_pi_init))
@@ -1656,9 +1630,9 @@ Global Symbols
 <BR><BR>[Stack]<UL><LI>Max Depth = 200 + Unknown Stack Size
 <LI>Call Chain = foc_start_init &rArr; adc1_current_offset_calibrate &rArr; debug_log &rArr; vsnprintf &rArr; _printf_char_common &rArr; __printf
 </UL>
-<BR>[Calls]<UL><LI><a href="#[f7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;adc1_current_offset_calibrate
-<LI><a href="#[e8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;debug_log
+<BR>[Calls]<UL><LI><a href="#[ee]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;adc1_current_offset_calibrate
 <LI><a href="#[109]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;get_foc_bus_voltage
+<LI><a href="#[ec]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;debug_log
 <LI><a href="#[101]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_f2d
 <LI><a href="#[108]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_position_pi_init
 <LI><a href="#[107]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_speed_pi_init
@@ -1672,34 +1646,46 @@ Global Symbols
 <LI><a href="#[8a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
-<P><STRONG><a name="[ff]"></a>get_parsed_data</STRONG> (Thumb, 10 bytes, Stack size 0 bytes, foc_prase.o(.text.get_parsed_data))
-<BR><BR>[Called By]<UL><LI><a href="#[fe]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_control_set
+<P><STRONG><a name="[f8]"></a>get_parsed_data</STRONG> (Thumb, 10 bytes, Stack size 0 bytes, foc_prase.o(.text.get_parsed_data))
+<BR><BR>[Called By]<UL><LI><a href="#[f7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_control_set
 </UL>
 
-<P><STRONG><a name="[8a]"></a>main</STRONG> (Thumb, 216 bytes, Stack size 0 bytes, main.o(.text.main))
-<BR><BR>[Stack]<UL><LI>Max Depth = 240 + Unknown Stack Size
-<LI>Call Chain = main &rArr; foc_debug &rArr; debug_log &rArr; vsnprintf &rArr; _printf_char_common &rArr; __printf
+<P><STRONG><a name="[fd]"></a>inv_park_transform_f32</STRONG> (Thumb, 42 bytes, Stack size 0 bytes, foc_conversion.o(.text.inv_park_transform_f32))
+<BR><BR>[Called By]<UL><LI><a href="#[f0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_current_in_control
 </UL>
-<BR>[Calls]<UL><LI><a href="#[e8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;debug_log
-<LI><a href="#[f8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;bsp_pwm_stop
-<LI><a href="#[100]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_debug
+
+<P><STRONG><a name="[8a]"></a>main</STRONG> (Thumb, 224 bytes, Stack size 0 bytes, main.o(.text.main))
+<BR><BR>[Stack]<UL><LI>Max Depth = 220 + Unknown Stack Size
+<LI>Call Chain = main &rArr; FOC_Init &rArr; MX_ADC1_Init &rArr; LL_GPIO_Init
+</UL>
+<BR>[Calls]<UL><LI><a href="#[100]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_debug
 <LI><a href="#[109]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;get_foc_bus_voltage
-<LI><a href="#[fe]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_control_set
+<LI><a href="#[ec]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;debug_log
 <LI><a href="#[102]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_start
+<LI><a href="#[ef]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;bsp_pwm_stop
+<LI><a href="#[f7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_control_set
 <LI><a href="#[105]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_start_init
-<LI><a href="#[fa]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_init
+<LI><a href="#[f1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_init
 <LI><a href="#[c4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;FOC_Init
 </UL>
 <BR>[Called By]<UL><LI><a href="#[89]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__rt_entry_main
 </UL>
 
-<P><STRONG><a name="[f6]"></a>parse_received_data</STRONG> (Thumb, 184 bytes, Stack size 24 bytes, foc_prase.o(.text.parse_received_data))
+<P><STRONG><a name="[fa]"></a>park_transform</STRONG> (Thumb, 42 bytes, Stack size 0 bytes, foc_conversion.o(.text.park_transform))
+<BR><BR>[Called By]<UL><LI><a href="#[f0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_current_in_control
+</UL>
+
+<P><STRONG><a name="[ed]"></a>parse_received_data</STRONG> (Thumb, 184 bytes, Stack size 24 bytes, foc_prase.o(.text.parse_received_data))
 <BR><BR>[Stack]<UL><LI>Max Depth = 476<LI>Call Chain = parse_received_data &rArr; __hardfp_strtof &rArr; __strtof_int &rArr; __strtod_int &rArr; _local_sscanf &rArr; _scanf_real &rArr; _scanf_really_real &rArr; _fp_value &rArr; _btod_etento &rArr; _btod_emul &rArr; _e2e
 </UL>
 <BR>[Calls]<UL><LI><a href="#[10b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__hardfp_strtof
 <LI><a href="#[10a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;strstr
 </UL>
 <BR>[Called By]<UL><LI><a href="#[30]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;USART3_IRQHandler
+</UL>
+
+<P><STRONG><a name="[fe]"></a>spwm_duty_calc</STRONG> (Thumb, 188 bytes, Stack size 0 bytes, foc_conversion.o(.text.spwm_duty_calc))
+<BR><BR>[Called By]<UL><LI><a href="#[f0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;foc_current_in_control
 </UL>
 
 <P><STRONG><a name="[a7]"></a>_btod_d2e</STRONG> (Thumb, 62 bytes, Stack size 0 bytes, btod.o(CL$$btod_d2e))
@@ -1748,8 +1734,8 @@ Global Symbols
 <BR>[Calls]<UL><LI><a href="#[10f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_e2e
 <LI><a href="#[110]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__btod_div_common
 </UL>
-<BR>[Called By]<UL><LI><a href="#[a5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_fp_digits
-<LI><a href="#[a6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_btod_etento
+<BR>[Called By]<UL><LI><a href="#[a6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_btod_etento
+<LI><a href="#[a5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_fp_digits
 </UL>
 
 <P><STRONG><a name="[ba]"></a>_btod_edivd</STRONG> (Thumb, 42 bytes, Stack size 28 bytes, btod.o(CL$$btod_edivd))
@@ -1767,8 +1753,8 @@ Global Symbols
 <BR>[Calls]<UL><LI><a href="#[111]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__btod_mult_common
 <LI><a href="#[10f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_e2e
 </UL>
-<BR>[Called By]<UL><LI><a href="#[a5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_fp_digits
-<LI><a href="#[a6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_btod_etento
+<BR>[Called By]<UL><LI><a href="#[a6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_btod_etento
+<LI><a href="#[a5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_fp_digits
 </UL>
 
 <P><STRONG><a name="[b9]"></a>_btod_emuld</STRONG> (Thumb, 42 bytes, Stack size 28 bytes, btod.o(CL$$btod_emuld))
@@ -1823,7 +1809,7 @@ Global Symbols
 </UL>
 <BR>[Calls]<UL><LI><a href="#[a3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__strtof_int
 </UL>
-<BR>[Called By]<UL><LI><a href="#[f6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;parse_received_data
+<BR>[Called By]<UL><LI><a href="#[ed]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;parse_received_data
 </UL>
 
 <P><STRONG><a name="[11a]"></a>__mathlib_dbl_overflow</STRONG> (Thumb, 24 bytes, Stack size 8 bytes, dunder.o(i.__mathlib_dbl_overflow))
@@ -2062,9 +2048,8 @@ Global Symbols
 <H3>
 Local Symbols
 </H3>
-<P><STRONG><a name="[fb]"></a>encoder_read_reg</STRONG> (Thumb, 294 bytes, Stack size 0 bytes, foc_encoder.o(.text.encoder_read_reg))
-<BR><BR>[Called By]<UL><LI><a href="#[fa]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_init
-<LI><a href="#[f3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_read_electrical_angle
+<P><STRONG><a name="[f6]"></a>encoder_read_reg</STRONG> (Thumb, 294 bytes, Stack size 0 bytes, foc_encoder.o(.text.encoder_read_reg))
+<BR><BR>[Called By]<UL><LI><a href="#[f2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;encoder_read_raw_angle
 </UL>
 
 <P><STRONG><a name="[53]"></a>_printf_input_char</STRONG> (Thumb, 10 bytes, Stack size 0 bytes, _printf_char_common.o(.text))
@@ -2073,11 +2058,11 @@ Local Symbols
 <P><STRONG><a name="[a5]"></a>_fp_digits</STRONG> (Thumb, 432 bytes, Stack size 96 bytes, _printf_fp_dec.o(.text))
 <BR><BR>[Stack]<UL><LI>Max Depth = 220<LI>Call Chain = _fp_digits &rArr; _btod_etento &rArr; _btod_emul &rArr; _e2e
 </UL>
-<BR>[Calls]<UL><LI><a href="#[9e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_ll_udiv10
-<LI><a href="#[a9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_btod_emul
+<BR>[Calls]<UL><LI><a href="#[a9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_btod_emul
 <LI><a href="#[a8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_btod_ediv
 <LI><a href="#[a7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_btod_d2e
 <LI><a href="#[a6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_btod_etento
+<LI><a href="#[9e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_ll_udiv10
 </UL>
 <BR>[Called By]<UL><LI><a href="#[aa]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_printf_fp_dec_real
 </UL>
@@ -2093,11 +2078,11 @@ Local Symbols
 <P><STRONG><a name="[b7]"></a>_fp_value</STRONG> (Thumb, 588 bytes, Stack size 96 bytes, scanf_fp.o(.text))
 <BR><BR>[Stack]<UL><LI>Max Depth = 220<LI>Call Chain = _fp_value &rArr; _btod_etento &rArr; _btod_emul &rArr; _e2e
 </UL>
-<BR>[Calls]<UL><LI><a href="#[93]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_errno_addr
-<LI><a href="#[b8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__ieee_status
+<BR>[Calls]<UL><LI><a href="#[b8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__ieee_status
 <LI><a href="#[b9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_btod_emuld
 <LI><a href="#[ba]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_btod_edivd
 <LI><a href="#[a6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_btod_etento
+<LI><a href="#[93]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_errno_addr
 </UL>
 <BR>[Called By]<UL><LI><a href="#[bb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_scanf_really_real
 </UL>

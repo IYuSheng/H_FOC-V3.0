@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 #ifndef FOC_ENCODER_CALIBRATION_ENABLE
-#define FOC_ENCODER_CALIBRATION_ENABLE 1
+#define FOC_ENCODER_CALIBRATION_ENABLE 0
 #endif
 
 /** 编码器校准扇区数量，1.8° 步进电机一圈对应 200 个整步 */
@@ -28,7 +28,6 @@
     (FOC_ENCODER_CALIBRATION_ENCODER_CPR / FOC_ENCODER_CALIBRATION_SENSOR_PERIODS_PER_REV)
 /** 编码器原始角度无效值 */
 #define FOC_ENCODER_CALIBRATION_INVALID_RAW  0xFFFFU
-#define ENC_ELEC_ZERO_OFFSET_DEG  (6.7f)
 
 /**
  * @brief 是否使用固化的编码器校准表
@@ -40,6 +39,7 @@
 
 extern const int32_t foc_encoder_calibration_const_table[FOC_ENCODER_CALIBRATION_TABLE_SIZE];
 extern const int8_t foc_encoder_calibration_const_direction;
+extern const uint8_t foc_encoder_calibration_const_reverse;
 
 /**
  * @brief 编码器开环校准状态机状态
@@ -47,9 +47,16 @@ extern const int8_t foc_encoder_calibration_const_direction;
 typedef enum
 {
     FOC_ENCODER_CALIBRATION_STATE_IDLE = 0,  /**< 空闲，首次调用后进入校准 */
-    FOC_ENCODER_CALIBRATION_STATE_ALIGN,     /**< d 轴定向锁定，等待转子稳定 */
-    FOC_ENCODER_CALIBRATION_STATE_MOVE,      /**< 开环推进到下一个整步边界 */
-    FOC_ENCODER_CALIBRATION_STATE_SETTLE,    /**< 到达边界后等待机械稳定 */
+    FOC_ENCODER_CALIBRATION_STATE_DIR_CHECK_ALIGN, /**< 方向检测前锁定 */
+    FOC_ENCODER_CALIBRATION_STATE_DIR_CHECK_MOVE,  /**< 小幅移动判断编码器方向 */
+    FOC_ENCODER_CALIBRATION_STATE_FIND_ZERO_CROSSING, /**< 寻找编码器原始零点跨越 */
+    FOC_ENCODER_CALIBRATION_STATE_ALIGN_TO_ZERO, /**< 对齐到最近电角度零点 */
+    FOC_ENCODER_CALIBRATION_STATE_FORWARD_MOVE,  /**< 正向推进到采样点 */
+    FOC_ENCODER_CALIBRATION_STATE_FORWARD_SETTLE_SAMPLE, /**< 正向稳定并多次采样 */
+    FOC_ENCODER_CALIBRATION_STATE_OVERSHOOT_MOVE, /**< 正向超调以消除换向回差 */
+    FOC_ENCODER_CALIBRATION_STATE_BACKTRACK_MOVE, /**< 反向回到最后采样点 */
+    FOC_ENCODER_CALIBRATION_STATE_BACKWARD_MOVE, /**< 反向推进到采样点 */
+    FOC_ENCODER_CALIBRATION_STATE_BACKWARD_SETTLE_SAMPLE, /**< 反向稳定并多次采样 */
     FOC_ENCODER_CALIBRATION_STATE_DONE,      /**< 校准完成，等待打印结果 */
     FOC_ENCODER_CALIBRATION_STATE_ERROR      /**< 校准失败 */
 } foc_encoder_calibration_state_t;
@@ -80,6 +87,7 @@ typedef struct
     volatile foc_encoder_calibration_state_t state; /**< 当前校准状态 */
     foc_encoder_calibration_error_t error;          /**< 最近一次校准错误码 */
     int8_t raw_direction;                           /**< 编码器原始值随开环正转变化方向，取值 +1/-1 */
+    uint8_t raw_reverse;                            /**< 校准内部是否反向处理原始角度，使正转时计数递增 */
     uint8_t calibrated;                             /**< 查找表是否已经生成 */
     uint16_t bad_interval_count;                    /**< 相邻校准点间隔异常数量 */
     uint16_t first_bad_sector;                      /**< 第一个间隔异常的扇区编号 */
@@ -89,9 +97,15 @@ typedef struct
     float max_nonlinearity_percent;                 /**< 最大非线性偏差百分比，用于评估磁铁偏心 */
 
     uint16_t active_sector;   /**< 当前正在校准的扇区编号 */
-    uint16_t sample_count;    /**< 已采集的校准点数量 */
+    uint16_t sample_count;    /**< 已采集的校准点数量或当前点采样次数 */
     uint32_t phase_tick;      /**< 当前状态持续的电流环 tick 数 */
     float command_angle_deg;  /**< 当前开环指令电角度，单位：度 */
+    float target_angle_deg;   /**< 当前开环目标电角度，单位：度 */
+    float start_angle_deg;    /**< 找零/对齐后的电角度基准，单位：度 */
+    uint16_t dir_check_raw;   /**< 方向检测起始原始值 */
+    uint16_t prev_processed_raw; /**< 找零时上一次处理后的原始值 */
+    int32_t sample_reference; /**< 当前点环形平均参考值 */
+    int32_t sample_accum;     /**< 当前点展开后的采样累加值 */
     uint16_t progress_sector; /**< 当前已经打印到的校准进度扇区 */
 
     uint8_t start_report_pending; /**< 等待打印开始信息 */
