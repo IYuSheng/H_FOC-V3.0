@@ -17,9 +17,11 @@ void cogging_calibration_update(float mech_angle, float iq_actual, float *target
             // 设置匀速转动
             *target_speed = COG_CAL_SPEED;
             
-            // 计算当前角度索引（0-359）
-            int idx = (int)(mech_angle) % 360;
-            if (idx < 0) idx += 360;
+            // 将 [0, 2*pi) 的机械角映射到固定分辨率查表索引。
+            float phase = angle_normalize(mech_angle) *
+                          ((float)COG_TABLE_SIZE / _2PI);
+            int idx = (int)phase;
+            if (idx >= COG_TABLE_SIZE) idx = 0;
             
             // 当角度进入新的整数度时记录
             if (idx != g_cogging.last_idx) {
@@ -51,7 +53,7 @@ void cogging_calibration_update(float mech_angle, float iq_actual, float *target
             }
             
             // 2. 去均值
-            float mean = sum / 360.0f;
+            float mean = sum / (float)COG_TABLE_SIZE;
             for (int i = 0; i < 360; i++) {
                 g_cogging.table[i] -= mean;
                 if (g_cogging.table[i] > 0.5f) g_cogging.table[i] = 0.5f;
@@ -73,11 +75,11 @@ void cogging_calibration_update(float mech_angle, float iq_actual, float *target
             // 计算齿槽补偿值（查表+插值）
             float iq_cog = 0.0f;
             if (g_cogging.compensation_enabled) {
-                float pos = fmodf(mech_angle, 360.0f);
-                if (pos < 0) pos += 360.0f;
+                float pos = angle_normalize(mech_angle) *
+                            ((float)COG_TABLE_SIZE / _2PI);
                 int idx = (int)pos;
                 float frac = pos - (float)idx;
-                int next = (idx + 1) % 360;
+                int next = (idx + 1) % COG_TABLE_SIZE;
                 iq_cog = g_cogging.table[idx] * (1.0f - frac) + g_cogging.table[next] * frac;
             }
             
@@ -104,11 +106,11 @@ float cogging_get_compensation(float mech_angle)
         return 0.0f;
     }
     
-    float pos = fmodf(mech_angle, 360.0f);
-    if (pos < 0) pos += 360.0f;
+    float pos = angle_normalize(mech_angle) *
+                ((float)COG_TABLE_SIZE / _2PI);
     int idx = (int)pos;
     float frac = pos - (float)idx;
-    int next = (idx + 1) % 360;
+    int next = (idx + 1) % COG_TABLE_SIZE;
     
     return g_cogging.table[idx] * (1.0f - frac) + g_cogging.table[next] * frac;
 }

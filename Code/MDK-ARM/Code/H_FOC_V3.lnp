@@ -50,6 +50,7 @@
 "code\foc_trapezoid_planner.o"
 "code\foc_trajectory_planning.o"
 "code\foc_encoder_calibration.o"
+"code\foc_mechanical_param.o"
 --strict --scatter "Code\H_FOC_V3.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers

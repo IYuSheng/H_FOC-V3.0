@@ -44,40 +44,29 @@
 // 速度环PI
 #define SPEED_LOOP_TIME 2000.0f
 #define SPEED_LOOP_DT   (1.0f / SPEED_LOOP_TIME) // 速度环调用周期 (单位：s)
-#define SPEED_P_GAIN    0.0001f
+#define SPEED_P_GAIN    0.00572957795f           // A/(rad/s)
 #define SPEED_I         0.000f
 #define SPEED_I_GAIN    (SPEED_I * SPEED_LOOP_DT) // KI = Ki * Ts(减小一个乘法)
 #define SPEED_I_LIMIT   0.2f
 #define SPEED_OUT_LIMIT 0.4f
-#define LADRC_BW        30.0f
-#define LADRC_TS        SPEED_LOOP_DT
-#define LADRC_B0        20000.0f
-
-#define LADRC_OUT_MIN       (-SPEED_OUT_LIMIT)
-#define LADRC_OUT_MAX       SPEED_OUT_LIMIT
-#define SPEED_ESO_WO_HZ     5.0f
-#define SPEED_ESO_WO        (2.0f * 3.14159265358979f * SPEED_ESO_WO_HZ)
-#define SPEED_ESO_B0        LADRC_B0
-#define SPEED_ESO_COMP_GAIN 1.0f
-#define SPEED_ESO_OUT_MIN   (-SPEED_OUT_LIMIT)
-#define SPEED_ESO_OUT_MAX   SPEED_OUT_LIMIT
 
 // 位置环PID
 #define POSITION_LOOP_TIME 2000.0f // 位置环调用频率 (2000Hz)
 #define POSITION_LOOP_DT   (1.0f / POSITION_LOOP_TIME) // 位置环调用周期 (单位：s)
-#define POSITION_P_GAIN    0.1f
+#define POSITION_P_GAIN    1.2f                        // A/rad
 #define POSITION_I         0.0f
 #define POSITION_I_GAIN                                                        \
     (POSITION_I * POSITION_LOOP_DT) // KI = Ki * Ts(减小一个乘法)
-#define POSITION_D_GAIN        0.000f
-#define POSITION_I_LIMIT       0.08f
-#define POSITION_OUT_LIMIT     1.5f
-#define POSITION_KV            8.0f
-#define POSITION_W_MAX         600.0f
-#define POSITION_LADRC_BW      0.02f
-#define POSITION_LADRC_B0      1.0f
-#define POSITION_LADRC_OUT_MIN (-POSITION_OUT_LIMIT)
-#define POSITION_LADRC_OUT_MAX POSITION_OUT_LIMIT
+#define POSITION_D_GAIN                  0.000f
+#define POSITION_I_LIMIT                 0.08f
+#define POSITION_OUT_LIMIT               2.0f
+#define POSITION_KV                      8.0f
+#define POSITION_W_MAX                   10.4719755f // rad/s
+#define POSITION_LADRC_CONTROL_BANDWIDTH 60.0f       // wc, rad/s
+#define POSITION_LESO_BANDWIDTH          180.0f      // wo, rad/s
+#define POSITION_LADRC_B0                1264.0f      // rad/s^2/A
+#define POSITION_LADRC_OUT_MIN           (-POSITION_OUT_LIMIT)
+#define POSITION_LADRC_OUT_MAX           POSITION_OUT_LIMIT
 
 // -------------------------- 电流采样配置 --------------------------
 #define ADC_REF_VOLTAGE 3.3f    // ADC参考电压 (V)
@@ -91,26 +80,17 @@
 #define R_Voaltage_2 2.2f  // 2.2KΩ
 
 // -------------------------- 常用常量及中间变量定义 --------------------------
-#define PI            3.14159265358979f
-#define _PI           PI
-#define _2PI          (2.0f * PI)
-#define _PI_2         (PI / 2.0f)
-#define _2_PI         (1.0f / (2.0f * PI))
-#define _60_angle     (2.0f * PI / 6.0f) // 60度对应的弧度
-#define _SQRT3        1.732050807568877f
-#define _SQRT3_2      0.866025403784439f // sqrt(3)/2
-#define _1_SQRT3      0.577350269189626f // 1/sqrt(3)
-#define _2_SQRT3      1.154700538379252f // 2/sqrt(3)
-#define RPM_TO_PI     (_2PI / 60.0f)     // RPM转换为弧度系数 (RPM * 2*PI / 60)
-#define RPM_TO_DEGREE (360.0f / 60.0f)   // RPM转换为度数系数
-#define SPEED_FACTOR                                                           \
-    (_2PI / 60.0f *                                                            \
-     MOTOR_POLE_PAIRS) // 速度转换系数 (机械转速rpm → 电角速度rad/s)
-#define SPEED_FACTOR360                                                        \
-    (360.0f / 60.0f *                                                          \
-     MOTOR_POLE_PAIRS) // 速度转换系数 (机械转速rpm → 电角速度°/s)
-#define RAD_TO_DEG (180.0f / PI)
-#define FACTOR     (_SQRT3 / PWM_FREQ) // SVPWM时间中间计算系数
+#define PI       3.14159265358979f
+#define M_PI		 PI
+#define _PI      PI
+#define _2PI     (2.0f * PI)
+#define _PI_2    (PI / 2.0f)
+#define _2_PI    (1.0f / (2.0f * PI))
+#define _SQRT3   1.732050807568877f
+#define _SQRT3_2 0.866025403784439f  // sqrt(3)/2
+#define _1_SQRT3 0.577350269189626f  // 1/sqrt(3)
+#define _2_SQRT3 1.154700538379252f  // 2/sqrt(3)
+#define FACTOR   (_SQRT3 / PWM_FREQ) // SVPWM时间中间计算系数
 #define PWM_PERIOD                                                             \
     ((170000000.0f / (2.0f * PWM_FREQ)) -                                      \
      1) // PWM周期计数值 (TIM时钟频率需根据实际配置调整)

@@ -1,4 +1,4 @@
-﻿#include "foc_encoder_calibration.h"
+#include "foc_encoder_calibration.h"
 
 #include "Config.h"
 #include "adc.h"
@@ -44,10 +44,10 @@
 #define ENC_CAL_SETTLE_TICKS ((uint32_t)(0.02f / PWM_PERIOD_S))
 /** 每个校准点平均采样次数 */
 #define ENC_CAL_SAMPLES_PER_POINT 8U
-/** 方向检测和找零过程中的单步电角度增量，单位：度 */
-#define ENC_CAL_ELEC_INC_DEG 0.05f
+/** 方向检测和找零过程中的单步电角度增量，单位：rad */
+#define ENC_CAL_ELEC_INC_RAD 0.000872664626f
 /** 方向检测移动角度，单位：电角度 */
-#define ENC_CAL_DIR_CHECK_DEG ENC_CAL_ELEC_STEP_DEG
+#define ENC_CAL_DIR_CHECK_RAD ENC_CAL_ELEC_STEP_RAD
 /** 寻找零点前的最小预旋转整步数，避免刚启动阶段机械未稳定 */
 #define ENC_CAL_ZERO_MIN_STEPS 20U
 /** 正向采集结束后的超调整步数，用于消除反向采样回差 */
@@ -63,15 +63,15 @@
 /** Raw count span of one repeated encoder magnetic period. */
 #define ENC_CAL_RAW_PERIOD_COUNTS FOC_ENCODER_CALIBRATION_ENCODER_PERIOD_COUNTS
 /** Total electrical angle covered by one unique encoder magnetic period. */
-#define ENC_CAL_TOTAL_ELEC_DEG                                                 \
-    (360.0f * (float)MOTOR_POLE_PAIRS /                                        \
+#define ENC_CAL_TOTAL_ELEC_RAD                                                 \
+    (_2PI * (float)MOTOR_POLE_PAIRS /                                          \
      (float)FOC_ENCODER_CALIBRATION_SENSOR_PERIODS_PER_REV)
-/** 每个校准扇区对应的电角度步进，单位：度 */
-#define ENC_CAL_ELEC_STEP_DEG                                                  \
-    (ENC_CAL_TOTAL_ELEC_DEG / (float)ENC_CAL_ACTIVE_SECTOR_COUNT)
-/** 每个校准扇区对应的机械角度步进，单位：度 */
-#define ENC_CAL_MECH_STEP_DEG                                                  \
-    (360.0f / (float)FOC_ENCODER_CALIBRATION_SECTOR_COUNT)
+/** 每个校准扇区对应的电角度步进，单位：rad */
+#define ENC_CAL_ELEC_STEP_RAD                                                  \
+    (ENC_CAL_TOTAL_ELEC_RAD / (float)ENC_CAL_ACTIVE_SECTOR_COUNT)
+/** 每个校准扇区对应的机械角度步进，单位：rad */
+#define ENC_CAL_MECH_STEP_RAD                                                  \
+    (_2PI / (float)FOC_ENCODER_CALIBRATION_SECTOR_COUNT)
 /** 相邻校准点最小允许间隔，理论值 period_counts/active_sectors，此处允许 -25%
  */
 #define ENC_CAL_STEP_MIN_COUNTS                                                \
@@ -120,7 +120,7 @@ const int32_t
 const int8_t foc_encoder_calibration_const_direction = 1;
 const uint8_t foc_encoder_calibration_const_reverse = 1U;
 
-static void enc_cal_openloop_voltage(float electrical_angle_deg,
+static void enc_cal_openloop_voltage(float electrical_angle_rad,
                                      float voltage_d, float voltage_q);
 
 /**
@@ -242,30 +242,30 @@ static uint8_t enc_cal_sample_processed_average(uint16_t *avg_raw)
 
 static uint8_t enc_cal_step_towards_target(void)
 {
-    if (g_encoder_calibration.command_angle_deg <
-        g_encoder_calibration.target_angle_deg) {
-        g_encoder_calibration.command_angle_deg += ENC_CAL_ELEC_INC_DEG;
-        if (g_encoder_calibration.command_angle_deg >
-            g_encoder_calibration.target_angle_deg) {
-            g_encoder_calibration.command_angle_deg =
-                g_encoder_calibration.target_angle_deg;
+    if (g_encoder_calibration.command_angle_rad <
+        g_encoder_calibration.target_angle_rad) {
+        g_encoder_calibration.command_angle_rad += ENC_CAL_ELEC_INC_RAD;
+        if (g_encoder_calibration.command_angle_rad >
+            g_encoder_calibration.target_angle_rad) {
+            g_encoder_calibration.command_angle_rad =
+                g_encoder_calibration.target_angle_rad;
         }
     }
-    else if (g_encoder_calibration.command_angle_deg >
-             g_encoder_calibration.target_angle_deg) {
-        g_encoder_calibration.command_angle_deg -= ENC_CAL_ELEC_INC_DEG;
-        if (g_encoder_calibration.command_angle_deg <
-            g_encoder_calibration.target_angle_deg) {
-            g_encoder_calibration.command_angle_deg =
-                g_encoder_calibration.target_angle_deg;
+    else if (g_encoder_calibration.command_angle_rad >
+             g_encoder_calibration.target_angle_rad) {
+        g_encoder_calibration.command_angle_rad -= ENC_CAL_ELEC_INC_RAD;
+        if (g_encoder_calibration.command_angle_rad <
+            g_encoder_calibration.target_angle_rad) {
+            g_encoder_calibration.command_angle_rad =
+                g_encoder_calibration.target_angle_rad;
         }
     }
 
-    enc_cal_openloop_voltage(g_encoder_calibration.command_angle_deg,
+    enc_cal_openloop_voltage(g_encoder_calibration.command_angle_rad,
                              ENC_CAL_D_AXIS_VOLTAGE, ENC_CAL_Q_AXIS_VOLTAGE);
 
-    return (g_encoder_calibration.command_angle_deg ==
-            g_encoder_calibration.target_angle_deg)
+    return (g_encoder_calibration.command_angle_rad ==
+            g_encoder_calibration.target_angle_rad)
         ? 1U
         : 0U;
 }
@@ -428,11 +428,11 @@ static uint8_t enc_cal_finalize_table(void)
 
 /**
  * @brief 使用开环电角度直接输出 d/q 轴电压
- * @param electrical_angle_deg 开环电角度指令，单位：度
+ * @param electrical_angle_rad 开环电角度指令，单位：rad
  * @param voltage_d d 轴电压指令，单位：V
  * @param voltage_q q 轴电压指令，单位：V
  */
-static void enc_cal_openloop_voltage(float electrical_angle_deg,
+static void enc_cal_openloop_voltage(float electrical_angle_rad,
                                      float voltage_d, float voltage_q)
 {
     float sin_theta;
@@ -443,13 +443,13 @@ static void enc_cal_openloop_voltage(float electrical_angle_deg,
         return;
     }
 
-    foc_ctrl.angle = angle_normalize_360(electrical_angle_deg);
+    foc_ctrl.angle = angle_normalize(electrical_angle_rad);
     foc_ctrl.target_d = 0.0f;
     foc_ctrl.target_q = 0.0f;
     foc_ctrl.out_d = voltage_d;
     foc_ctrl.out_q = voltage_q;
 
-    CORDIC_SinCos_Deg(foc_ctrl.angle, &sin_theta, &cos_theta);
+    CORDIC_SinCos_Rad(foc_ctrl.angle, &sin_theta, &cos_theta);
     inv_park_transform_f32(&foc_ctrl, &alpha_beta, sin_theta, cos_theta);
     spwm_duty_calc(&spwm, &alpha_beta, foc_voltage_data.vbus);
     bsp_pwm_set_duty_four_phase(spwm.duty_Ap, spwm.duty_An, spwm.duty_Bp,
@@ -478,9 +478,9 @@ void foc_encoder_calibration_reset(void)
     g_encoder_calibration.active_sector = 0U;
     g_encoder_calibration.sample_count = 0U;
     g_encoder_calibration.phase_tick = 0U;
-    g_encoder_calibration.command_angle_deg = 0.0f;
-    g_encoder_calibration.target_angle_deg = 0.0f;
-    g_encoder_calibration.start_angle_deg = 0.0f;
+    g_encoder_calibration.command_angle_rad = 0.0f;
+    g_encoder_calibration.target_angle_rad = 0.0f;
+    g_encoder_calibration.start_angle_rad = 0.0f;
     g_encoder_calibration.dir_check_raw = 0U;
     g_encoder_calibration.prev_processed_raw = 0U;
     g_encoder_calibration.sample_reference = 0;
@@ -534,9 +534,9 @@ void foc_encoder_calibration_open_loop_calibrate(void)
             g_encoder_calibration.active_sector = 0U;
             g_encoder_calibration.sample_count = 0U;
             g_encoder_calibration.phase_tick = 0U;
-            g_encoder_calibration.command_angle_deg = -ENC_CAL_ELEC_STEP_DEG;
-            g_encoder_calibration.target_angle_deg = -ENC_CAL_ELEC_STEP_DEG;
-            g_encoder_calibration.start_angle_deg = 0.0f;
+            g_encoder_calibration.command_angle_rad = -ENC_CAL_ELEC_STEP_RAD;
+            g_encoder_calibration.target_angle_rad = -ENC_CAL_ELEC_STEP_RAD;
+            g_encoder_calibration.start_angle_rad = 0.0f;
             g_encoder_calibration.dir_check_raw = 0U;
             g_encoder_calibration.prev_processed_raw = 0U;
             g_encoder_calibration.sample_reference = 0;
@@ -554,7 +554,7 @@ void foc_encoder_calibration_open_loop_calibrate(void)
             break;
 
         case FOC_ENCODER_CALIBRATION_STATE_DIR_CHECK_ALIGN:
-            enc_cal_openloop_voltage(g_encoder_calibration.command_angle_deg,
+            enc_cal_openloop_voltage(g_encoder_calibration.command_angle_rad,
                                      ENC_CAL_D_AXIS_VOLTAGE,
                                      ENC_CAL_Q_AXIS_VOLTAGE);
             if (++g_encoder_calibration.phase_tick >= ENC_CAL_ALIGN_TICKS) {
@@ -568,9 +568,9 @@ void foc_encoder_calibration_open_loop_calibrate(void)
 
                 g_encoder_calibration.dir_check_raw =
                     g_encoder_calibration.latest_raw;
-                g_encoder_calibration.target_angle_deg =
-                    g_encoder_calibration.command_angle_deg +
-                    ENC_CAL_DIR_CHECK_DEG;
+                g_encoder_calibration.target_angle_rad =
+                    g_encoder_calibration.command_angle_rad +
+                    ENC_CAL_DIR_CHECK_RAD;
                 g_encoder_calibration.phase_tick = 0U;
                 g_encoder_calibration.state =
                     FOC_ENCODER_CALIBRATION_STATE_DIR_CHECK_MOVE;
@@ -608,8 +608,8 @@ void foc_encoder_calibration_open_loop_calibrate(void)
                     break;
                 }
 
-                g_encoder_calibration.start_angle_deg =
-                    g_encoder_calibration.command_angle_deg;
+                g_encoder_calibration.start_angle_rad =
+                    g_encoder_calibration.command_angle_rad;
                 g_encoder_calibration.prev_processed_raw =
                     enc_cal_get_processed_raw(g_encoder_calibration.latest_raw);
                 g_encoder_calibration.phase_tick = 0U;
@@ -621,10 +621,10 @@ void foc_encoder_calibration_open_loop_calibrate(void)
         case FOC_ENCODER_CALIBRATION_STATE_FIND_ZERO_CROSSING: {
             uint16_t current_raw;
             uint16_t prev_raw;
-            float moved_deg;
+            float moved_rad;
 
-            g_encoder_calibration.command_angle_deg += ENC_CAL_ELEC_INC_DEG;
-            enc_cal_openloop_voltage(g_encoder_calibration.command_angle_deg,
+            g_encoder_calibration.command_angle_rad += ENC_CAL_ELEC_INC_RAD;
+            enc_cal_openloop_voltage(g_encoder_calibration.command_angle_rad,
                                      ENC_CAL_D_AXIS_VOLTAGE,
                                      ENC_CAL_Q_AXIS_VOLTAGE);
 
@@ -638,21 +638,21 @@ void foc_encoder_calibration_open_loop_calibrate(void)
             current_raw =
                 enc_cal_get_processed_raw(g_encoder_calibration.latest_raw);
             prev_raw = g_encoder_calibration.prev_processed_raw;
-            moved_deg = g_encoder_calibration.command_angle_deg -
-                g_encoder_calibration.start_angle_deg;
+            moved_rad = g_encoder_calibration.command_angle_rad -
+                g_encoder_calibration.start_angle_rad;
             g_encoder_calibration.prev_processed_raw = current_raw;
 
-            if ((moved_deg >
-                 ((float)ENC_CAL_ZERO_MIN_STEPS * ENC_CAL_ELEC_STEP_DEG)) &&
+            if ((moved_rad >
+                 ((float)ENC_CAL_ZERO_MIN_STEPS * ENC_CAL_ELEC_STEP_RAD)) &&
                 (prev_raw >
                  (uint16_t)((ENC_CAL_RAW_PERIOD_COUNTS * 3U) / 4U)) &&
                 (current_raw < (uint16_t)(ENC_CAL_RAW_PERIOD_COUNTS / 4U))) {
                 float nearest_step =
-                    (float)((int32_t)((g_encoder_calibration.command_angle_deg /
-                                       ENC_CAL_ELEC_STEP_DEG) +
+                    (float)((int32_t)((g_encoder_calibration.command_angle_rad /
+                                       ENC_CAL_ELEC_STEP_RAD) +
                                       0.5f));
-                g_encoder_calibration.target_angle_deg =
-                    nearest_step * ENC_CAL_ELEC_STEP_DEG;
+                g_encoder_calibration.target_angle_rad =
+                    nearest_step * ENC_CAL_ELEC_STEP_RAD;
                 g_encoder_calibration.phase_tick = 0U;
                 g_encoder_calibration.state =
                     FOC_ENCODER_CALIBRATION_STATE_ALIGN_TO_ZERO;
@@ -667,12 +667,12 @@ void foc_encoder_calibration_open_loop_calibrate(void)
             }
 
             if (++g_encoder_calibration.phase_tick >= ENC_CAL_SETTLE_TICKS) {
-                g_encoder_calibration.start_angle_deg =
-                    g_encoder_calibration.target_angle_deg;
+                g_encoder_calibration.start_angle_rad =
+                    g_encoder_calibration.target_angle_rad;
                 g_encoder_calibration.active_sector = 0U;
                 g_encoder_calibration.phase_tick = 0U;
-                g_encoder_calibration.target_angle_deg =
-                    g_encoder_calibration.start_angle_deg;
+                g_encoder_calibration.target_angle_rad =
+                    g_encoder_calibration.start_angle_rad;
                 g_encoder_calibration.state =
                     FOC_ENCODER_CALIBRATION_STATE_FORWARD_MOVE;
             }
@@ -681,21 +681,21 @@ void foc_encoder_calibration_open_loop_calibrate(void)
         case FOC_ENCODER_CALIBRATION_STATE_FORWARD_MOVE:
             if (g_encoder_calibration.active_sector >=
                 ENC_CAL_ACTIVE_SECTOR_COUNT) {
-                g_encoder_calibration.target_angle_deg =
-                    g_encoder_calibration.start_angle_deg +
+                g_encoder_calibration.target_angle_rad =
+                    g_encoder_calibration.start_angle_rad +
                     (float)(ENC_CAL_ACTIVE_SECTOR_COUNT +
                             ENC_CAL_OVERSHOOT_STEPS) *
-                        ENC_CAL_ELEC_STEP_DEG;
+                        ENC_CAL_ELEC_STEP_RAD;
                 g_encoder_calibration.phase_tick = 0U;
                 g_encoder_calibration.state =
                     FOC_ENCODER_CALIBRATION_STATE_OVERSHOOT_MOVE;
                 break;
             }
 
-            g_encoder_calibration.target_angle_deg =
-                g_encoder_calibration.start_angle_deg +
+            g_encoder_calibration.target_angle_rad =
+                g_encoder_calibration.start_angle_rad +
                 (float)g_encoder_calibration.active_sector *
-                    ENC_CAL_ELEC_STEP_DEG;
+                    ENC_CAL_ELEC_STEP_RAD;
             if (enc_cal_step_towards_target() != 0U) {
                 enc_cal_sample_reset();
                 g_encoder_calibration.phase_tick = 0U;
@@ -705,7 +705,7 @@ void foc_encoder_calibration_open_loop_calibrate(void)
             break;
 
         case FOC_ENCODER_CALIBRATION_STATE_FORWARD_SETTLE_SAMPLE:
-            enc_cal_openloop_voltage(g_encoder_calibration.command_angle_deg,
+            enc_cal_openloop_voltage(g_encoder_calibration.command_angle_rad,
                                      ENC_CAL_D_AXIS_VOLTAGE,
                                      ENC_CAL_Q_AXIS_VOLTAGE);
             if (++g_encoder_calibration.phase_tick >= ENC_CAL_SETTLE_TICKS) {
@@ -736,9 +736,9 @@ void foc_encoder_calibration_open_loop_calibrate(void)
             if (++g_encoder_calibration.phase_tick >= ENC_CAL_SETTLE_TICKS) {
                 g_encoder_calibration.active_sector =
                     ENC_CAL_ACTIVE_SECTOR_COUNT - 1U;
-                g_encoder_calibration.target_angle_deg =
-                    g_encoder_calibration.start_angle_deg +
-                    (float)ENC_CAL_ACTIVE_SECTOR_COUNT * ENC_CAL_ELEC_STEP_DEG;
+                g_encoder_calibration.target_angle_rad =
+                    g_encoder_calibration.start_angle_rad +
+                    (float)ENC_CAL_ACTIVE_SECTOR_COUNT * ENC_CAL_ELEC_STEP_RAD;
                 g_encoder_calibration.phase_tick = 0U;
                 g_encoder_calibration.state =
                     FOC_ENCODER_CALIBRATION_STATE_BACKTRACK_MOVE;
@@ -759,10 +759,10 @@ void foc_encoder_calibration_open_loop_calibrate(void)
             break;
 
         case FOC_ENCODER_CALIBRATION_STATE_BACKWARD_MOVE:
-            g_encoder_calibration.target_angle_deg =
-                g_encoder_calibration.start_angle_deg +
+            g_encoder_calibration.target_angle_rad =
+                g_encoder_calibration.start_angle_rad +
                 (float)g_encoder_calibration.active_sector *
-                    ENC_CAL_ELEC_STEP_DEG;
+                    ENC_CAL_ELEC_STEP_RAD;
             if (enc_cal_step_towards_target() != 0U) {
                 enc_cal_sample_reset();
                 g_encoder_calibration.phase_tick = 0U;
@@ -772,7 +772,7 @@ void foc_encoder_calibration_open_loop_calibrate(void)
             break;
 
         case FOC_ENCODER_CALIBRATION_STATE_BACKWARD_SETTLE_SAMPLE:
-            enc_cal_openloop_voltage(g_encoder_calibration.command_angle_deg,
+            enc_cal_openloop_voltage(g_encoder_calibration.command_angle_rad,
                                      ENC_CAL_D_AXIS_VOLTAGE,
                                      ENC_CAL_Q_AXIS_VOLTAGE);
             if (++g_encoder_calibration.phase_tick >= ENC_CAL_SETTLE_TICKS) {
@@ -815,7 +815,7 @@ void foc_encoder_calibration_open_loop_calibrate(void)
             break;
 
         case FOC_ENCODER_CALIBRATION_STATE_DONE:
-            enc_cal_openloop_voltage(g_encoder_calibration.command_angle_deg,
+            enc_cal_openloop_voltage(g_encoder_calibration.command_angle_rad,
                                      ENC_CAL_D_AXIS_VOLTAGE,
                                      ENC_CAL_Q_AXIS_VOLTAGE);
             if (++g_encoder_calibration.phase_tick >= ENC_CAL_HOLD_TICKS) {
@@ -833,9 +833,9 @@ void foc_encoder_calibration_open_loop_calibrate(void)
 /**
  * @brief 将编码器原始角度线性化为 FOC 使用角度
  * @param raw_angle MT6816 原始角度，范围 0~16383
- * @param electrical_angle 输出电角度，单位：度，范围 0~360
+ * @param electrical_angle 输出电角度，单位：rad，范围 [0, 2*pi)
  * @param mechanical_angle
- * 输出机械角度，单位：度；多磁周期编码器下为单个磁周期内角度
+ * 输出机械角度，单位：rad；多磁周期编码器下为单个磁周期内角度
  * @return 1 表示转换成功，0 表示未校准或输入无效
  */
 uint8_t foc_encoder_calibration_linearize(uint16_t raw_angle,
@@ -924,9 +924,9 @@ uint8_t foc_encoder_calibration_linearize(uint16_t raw_angle,
     }
 
     sector_position = (float)low + fraction;
-    *mechanical_angle = sector_position * ENC_CAL_MECH_STEP_DEG;
+    *mechanical_angle = sector_position * ENC_CAL_MECH_STEP_RAD;
     *electrical_angle =
-        angle_normalize_360(*mechanical_angle * MOTOR_POLE_PAIRS);
+        angle_normalize(*mechanical_angle * MOTOR_POLE_PAIRS);
 
     return 1U;
 }
@@ -939,13 +939,14 @@ void foc_encoder_calibration_debug_log(void)
     if (g_encoder_calibration.start_report_pending != 0U) {
         g_encoder_calibration.start_report_pending = 0U;
         debug_log("[ENC_CAL] start: sectors=%u sensor_periods=%u pole_pairs=%u "
-                  "capture_step=%.3f inc=%.3f settle_ticks=%lu total_elec=%.1f "
+                  "capture_step_rad=%.3f inc_rad=%.3f settle_ticks=%lu "
+                  "total_elec_rad=%.1f "
                   "d_voltage=%.3f",
                   ENC_CAL_ACTIVE_SECTOR_COUNT,
                   FOC_ENCODER_CALIBRATION_SENSOR_PERIODS_PER_REV,
-                  MOTOR_POLE_PAIRS, ENC_CAL_ELEC_STEP_DEG, ENC_CAL_ELEC_INC_DEG,
+                  MOTOR_POLE_PAIRS, ENC_CAL_ELEC_STEP_RAD, ENC_CAL_ELEC_INC_RAD,
                   (unsigned long)ENC_CAL_SETTLE_TICKS,
-                  ENC_CAL_ELEC_STEP_DEG * (float)ENC_CAL_ACTIVE_SECTOR_COUNT,
+                  ENC_CAL_ELEC_STEP_RAD * (float)ENC_CAL_ACTIVE_SECTOR_COUNT,
                   ENC_CAL_D_AXIS_VOLTAGE);
         return;
     }

@@ -41,9 +41,10 @@ code/usart.o: ..\Core\Src\usart.c ..\Core\Inc\usart.h ..\Core\Inc\main.h \
   ..\Core\Inc\adc.h ..\Core\Inc\cordic.h ..\Core\Inc\spi.h \
   ..\Core\Inc\tim.h ..\Core\Inc\gpio.h ..\APP\foc_encoder.h \
   ..\MID\foc_conversion.h ..\APP\Config.h ..\APP\foc_sys.h \
-  ..\APP\foc_control.h ..\APP\foc_setting.h ..\MID\foc_prase.h \
-  ..\MID\foc_vibration_sweep.h ..\APP\foc_Parameteridentifikation.h \
-  ..\MID\foc_cogging_compensation.h ..\MID\foc_trajectory_planning.h \
-  ..\MID\foc_sensorless.h ..\MID\foc_filter.h ..\MID\foc_ladrc.h \
-  ..\MID\foc_encoder_calibration.h ..\MID\foc_trapezoid_planner.h \
-  ..\MID\foc_communication.h ..\Core\Inc\fdcan.h
+  ..\APP\foc_control.h ..\APP\foc_Parameteridentifikation.h \
+  ..\MID\foc_cogging_compensation.h ..\MID\foc_encoder_calibration.h \
+  ..\MID\foc_filter.h ..\MID\foc_ladrc.h ..\MID\foc_mechanical_param.h \
+  ..\MID\foc_prase.h ..\MID\foc_sensorless.h ..\APP\foc_setting.h \
+  ..\MID\foc_trajectory_planning.h ..\MID\foc_trapezoid_planner.h \
+  ..\MID\foc_vibration_sweep.h ..\MID\foc_communication.h \
+  ..\Core\Inc\fdcan.h

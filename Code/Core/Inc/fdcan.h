@@ -36,7 +36,7 @@
 
 /* ===================== 定点缩放定义 ===================== */
 
-/* 当前协议默认所有 int32 字段都按 1e-5 的物理量缩放 */
+/* 当前协议默认所有 int32 字段都按 1e-5 的物理量缩放；角运动量采用 SI 单位。 */
 #define SCALE_32          0.00001f
 #define INV_SCALE_32      (1.0f / SCALE_32)
 
@@ -48,20 +48,20 @@
 
 /* 关节状态帧负载：5 个 int32，共 20 字节 */
 typedef struct __attribute__((packed)) {
-    int32_t position;       /* 当前机械角度 */
-    int32_t velocity;       /* 当前机械角速度 */
+    int32_t position;       /* 当前机械角度，rad */
+    int32_t velocity;       /* 当前机械角速度，rad/s */
     int32_t current;        /* 当前 q 轴电流 */
     int32_t temperature;    /* 当前温度 */
-    int32_t acceleration;   /* 当前机械角加速度 */
+    int32_t acceleration;   /* 当前机械角加速度，rad/s^2 */
 } joint_status_t;
 
 /* 控制指令帧负载：7 个 int32 + 1 个 uint8，实际 29 字节，CAN FD DLC 会占用 32 字节 */
 typedef struct __attribute__((packed)) {
     int32_t target_current;      /* 目标电流 / 前馈力矩电流 */
-    int32_t target_angle;        /* 目标机械角度 */
-    int32_t target_velocity;     /* 目标机械角速度 */
-    int32_t target_acceleration; /* 目标机械角加速度 */
-    int32_t target_jerk;         /* 目标机械角加加速度 */
+    int32_t target_angle;        /* 目标机械角度，rad */
+    int32_t target_velocity;     /* 目标机械角速度，rad/s */
+    int32_t target_acceleration; /* 目标机械角加速度，rad/s^2 */
+    int32_t target_jerk;         /* 目标机械角加加速度，rad/s^3 */
     int32_t stiffness;           /* 刚度系数 */
     int32_t damping;             /* 阻尼系数 */
     uint8_t control_mode;        /* 控制模式 */

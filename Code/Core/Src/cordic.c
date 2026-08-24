@@ -24,7 +24,6 @@ void CORDIC_Config_Rotation(void);
 
 /* 定义常量，避免除法运算 */
 #define RECIPROCAL_PI       0.3183098861837907f     // 1.0f / 3.141592653589793f
-#define RECIPROCAL_180      0.0055555555555556f     // 1.0f / 180.0f
 #define RECIPROCAL_Q31      4.656612873077393e-10f  // 1.0f / 2147483648.0f
 
 /* CORDIC init function */
@@ -85,27 +84,3 @@ void CORDIC_SinCos_Rad(float angle_rad, float *sin_val, float *cos_val)
     *sin_val = (float)(int32_t)CORDIC->RDATA * RECIPROCAL_Q31;
 }
 
-/**
- * @brief 使用CORDIC计算正弦和余弦 - 输入为角度（度）
- * @param angle_deg 角度（度），范围0~360或任意值
- * @param sin_val 输出正弦值
- * @param cos_val 输出余弦值
- */
-void CORDIC_SinCos_Deg(float angle_deg, float *sin_val, float *cos_val)
-{
-    // 度 -> [-1, 1] 对应 [-180°, 180°]
-    float arg = angle_deg * RECIPROCAL_180;
-    
-    // 限制到[-1, 1]
-    while (arg > 1.0f) arg -= 2.0f;
-    while (arg < -1.0f) arg += 2.0f;
-    
-    int32_t arg_q31 = (int32_t)(arg * 2147483647.0f);
-    
-    CORDIC->WDATA = arg_q31;
-    
-    while(!LL_CORDIC_IsActiveFlag_RRDY(CORDIC));
-
-    *cos_val = (float)(int32_t)CORDIC->RDATA * RECIPROCAL_Q31;
-    *sin_val = (float)(int32_t)CORDIC->RDATA * RECIPROCAL_Q31;
-}

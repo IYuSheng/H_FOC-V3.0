@@ -6,9 +6,9 @@
 #include <math.h>
 #include "foc_control.h"
 
-#define COG_TABLE_SIZE      360     // 每度一个点
+#define COG_TABLE_SIZE      360     // 每机械圈 360 个采样格
 #define COG_CAL_ROUNDS      5       // 采集圈数（5圈平均）
-#define COG_CAL_SPEED       500.0f   // 标定速度（度/秒），建议10-20
+#define COG_CAL_SPEED       8.72664626f // 标定速度 (rad/s)
 
 typedef enum {
     COG_CAL_RUNNING = 0,    // 匀速转动采集中

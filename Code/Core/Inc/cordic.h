@@ -1,4 +1,4 @@
-/* USER CODE BEGIN Header */
+﻿/* USER CODE BEGIN Header */
 /**
   ******************************************************************************
   * @file    cordic.h
@@ -44,15 +44,7 @@ void MX_CORDIC_Init(void);
  * @param sin_val 输出正弦值（-1.0 ~ 1.0）
  * @param cos_val 输出余弦值（-1.0 ~ 1.0）
  */
-inline void CORDIC_SinCos_Rad(float angle_rad, float *sin_val, float *cos_val);
-
-/**
- * @brief 使用CORDIC计算正弦和余弦（替代arm_sin_cos_f32）- 输入为角度
- * @param angle_deg 角度（度），范围0~360
- * @param sin_val 输出正弦值（-1.0 ~ 1.0）
- * @param cos_val 输出余弦值（-1.0 ~ 1.0）
- */
-inline void CORDIC_SinCos_Deg(float angle_deg, float *sin_val, float *cos_val);
+void CORDIC_SinCos_Rad(float angle_rad, float *sin_val, float *cos_val);
 
 #ifdef __cplusplus
 }

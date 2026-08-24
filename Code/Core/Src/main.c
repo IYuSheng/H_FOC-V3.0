@@ -1,14 +1,14 @@
 #include "main.h"
 
 Motor_Control_t motor_ctrl = {
-    .foc_state =  FOC_STATE_INIT,
+    .foc_state = FOC_STATE_INIT,
     .fault_type = MOTOR_FAULT_NONE,
-    .temp_max = OVER_TEMPERATURE_THRESH,    // 过温阈值
-    .vbus_max = VOLTAGE_LIMIT,              // 过压阈值
-    .vbus_min = UNDER_VOLTAGE_THRESH,       // 欠压阈值
-    .current_max = CURRENT_LIMIT,            // 过流阈值
-    .angle_max = 70.0f,                      // 最大角度阈值（°/s）
-    .angle_min = -170.0f                     // 最小角度阈值（°/s）
+    .temp_max = OVER_TEMPERATURE_THRESH, // 过温阈值
+    .vbus_max = VOLTAGE_LIMIT,           // 过压阈值
+    .vbus_min = UNDER_VOLTAGE_THRESH,    // 欠压阈值
+    .current_max = CURRENT_LIMIT,        // 过流阈值
+    .angle_max = 1.221730476f,           // 最大角度阈值 (rad)
+    .angle_min = -2.967059728f           // 最小角度阈值 (rad)
 };
 
 encoder_status_t enc_status; // 编码器状态变量
@@ -21,7 +21,7 @@ int main(void)
 {
     // 初始化FOC相关外设
     FOC_Init();
-    
+
     for(;;)
     {
       /* ------------------ FOC状态机 ------------------ */
@@ -58,19 +58,19 @@ int main(void)
             case FAULT_OVER_VOLTAGE:
               debug_log("[ERROR] OVER_VOLTAGE");
               break;
-              
+
             case FAULT_UNDER_VOLTAGE:
               debug_log("[ERROR] UNDER_VOLTAGE");
               break;
-              
+
             case FAULT_OVER_CURRENT:
               debug_log("[ERROR] OVER_CURRENT");
               break;
-              
+
             case FAULT_ENCODER:
               debug_log("[ERROR] ENCODER_ERROR");
               break;
-              
+
             case FAULT_OVER_TEMPERATURE:
               debug_log("[ERROR] OVER_TEMPERATURE");
               break;
@@ -82,7 +82,7 @@ int main(void)
             case FAULT_ENCODER_ANGLE:
               debug_log("[ERROR] ENCODER_ANGLE_ERROR");
               break;
-              
+
             case MOTOR_FAULT_NONE:
               // 待添加恢复机制
 
@@ -113,10 +113,6 @@ int main(void)
         foc_task.task_sys_common = 0;
         // foc打印调试任务
         foc_debug();
-        // CAN数据发送
-        // CAN_ReportStatus(angle_normalize_360(encoder_data.mechanical_angle), encoder_data.mechanical_speed);
-        // // CAN数据处理
-        // CAN_Process();
       }
 
       /* --------------- 异常状态检测 --------------- */

@@ -16,8 +16,8 @@
 #define TIM4_PSC                    169U
 #define TIM4_ARR                    499U
 #define TIM1_PWM_ARR                ((uint32_t)PWM_PERIOD)
-#define TIM1_ADC_TRIGGER_COMPARE    (TIM1_PWM_ARR - 20U)
-#define TIM15_ENCODER_COMPARE       (TIM1_ADC_TRIGGER_COMPARE - 2000U)
+#define TIM1_ADC_TRIGGER_COMPARE    (TIM1_PWM_ARR - 1U)
+#define TIM15_ENCODER_COMPARE       (TIM1_ADC_TRIGGER_COMPARE - 1600U)
 
 void MX_TIM1_Init(void)
 {
@@ -118,7 +118,7 @@ void MX_TIM15_Init(void)
 
   TIM_InitStruct.Prescaler = 0;
   TIM_InitStruct.CounterMode = LL_TIM_COUNTERMODE_UP;
-  TIM_InitStruct.Autoreload = TIM1_PWM_ARR;
+  TIM_InitStruct.Autoreload = 0xFFFFU;
   TIM_InitStruct.ClockDivision = LL_TIM_CLOCKDIVISION_DIV1;
   TIM_InitStruct.RepetitionCounter = 0;
   LL_TIM_Init(TIM15, &TIM_InitStruct);
@@ -142,7 +142,7 @@ void MX_TIM15_Init(void)
   LL_TIM_SetSlaveMode(TIM15, LL_TIM_SLAVEMODE_RESET);
   LL_TIM_ClearFlag_CC1(TIM15);
 
-  NVIC_SetPriority(TIM1_BRK_TIM15_IRQn, 2);
+  NVIC_SetPriority(TIM1_BRK_TIM15_IRQn, 0);
   NVIC_EnableIRQ(TIM1_BRK_TIM15_IRQn);
 }
 

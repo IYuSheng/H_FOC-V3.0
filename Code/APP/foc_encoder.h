@@ -52,12 +52,12 @@
 // 编码器参数
 #define ENCODER_RESOLUTION      14              // 14位分辨率
 #define ENCODER_MAX_VALUE       ((1 << ENCODER_RESOLUTION) - 1)  // 最大原始值：16383
-#define ENCODER_ANGLE_SCALE     (360.0f / (float)(1 << ENCODER_RESOLUTION))  // 360/16384 ≈ 0.02197°/LSB
+#define ENCODER_ANGLE_SCALE     (_2PI / (float)(1 << ENCODER_RESOLUTION))
 #define ENCODER_ELECTRICAL_SCALE (ENCODER_ANGLE_SCALE * MOTOR_POLE_PAIRS)
 // Current magnet produces two encoder angle periods per mechanical revolution.
 #define ENCODER_SENSOR_PERIODS_PER_REV 2U
 #define ENCODER_PERIOD_COUNTS          ((1U << ENCODER_RESOLUTION) / ENCODER_SENSOR_PERIODS_PER_REV)
-#define ENCODER_PERIOD_ANGLE_SCALE     (360.0f / (float)ENCODER_PERIOD_COUNTS)
+#define ENCODER_PERIOD_ANGLE_SCALE     (_2PI / (float)ENCODER_PERIOD_COUNTS)
 #define ENCODER_EFFECTIVE_POLE_PAIRS   (MOTOR_POLE_PAIRS / ENCODER_SENSOR_PERIODS_PER_REV)
 #define SPEED_CALC_INTERVAL     0.001f
 #define SPEED_FILTER_K          0.2f
@@ -73,21 +73,21 @@ typedef enum {
 // 编码器数据结构体
 typedef struct {
     uint16_t raw_angle;                 // 原始角度值（0~16383）
-    float    angle_raw_scaled;          // 机械角度（0~360°）
-    float    mechanical_angle;          // 机械角度(累积值，可正可负)
-    float    electrical_angle;          // 电角度（0~360°，需结合电机极对数计算）
-    float    electrical_speed;          // 电角速度（0~2π rad/s）
+    float    angle_raw_scaled;          // 单圈机械角度 [0, 2*pi), rad
+    float    mechanical_angle;          // 单圈机械角度 [0, 2*pi), rad
+    float    electrical_angle;          // 电角度 [0, 2*pi), rad
+    float    electrical_speed;          // 电角速度 (rad/s)
     int32_t  mechanical_turns;          // accumulated mechanical turns
-    float    mechanical_position;       // multi-turn position, deg
-    float    mechanical_speed;          // 机械角速度（°/s）
-    float    mechanical_accsd;          // 机械角加速度(°/s^2)
+    float    mechanical_position;       // multi-turn position, rad
+    float    mechanical_speed;          // 机械角速度 (rad/s)
+    float    mechanical_accsd;          // 机械角加速度 (rad/s^2)
     uint8_t  error_flag;                // 错误标志（0=无错误，1=有错误）
     uint8_t  agc_value;                 // AGC 值（反映磁场强度：0=强，255=弱）
 } encoder_data_t;
 
 typedef struct {
-    float theta_hat;       // estimated position, deg
-    float omega_hat;       // estimated velocity, deg/s
+    float theta_hat;       // estimated position, rad
+    float omega_hat;       // estimated velocity, rad/s
     uint8_t inited;
 } pos_obs_t;
 
@@ -109,16 +109,16 @@ encoder_status_t encoder_init(void);
 uint16_t encoder_read_raw_angle(void);
 
 /**
-  * @brief  读取编码器机械角度（0~360°，已含零点校准）
+  * @brief  读取编码器单圈机械角度 [0, 2*pi)，已含零点校准
   * @note   约 2.8us
-  * @retval float 机械角度值（°），读取失败返回 -1.0f
+  * @retval float 机械角度值 (rad)，读取失败返回 -1.0f
   */
 float encoder_read_mechanical_angle(void);
 
 /**
   * @brief  读取编码器电角度
   * @note   将机械角度乘以极对数得到电角度，用于FOC控制中的磁场定向
-  * @retval float 电角度值（度），失败返回 -1.0f
+  * @retval float 电角度值 (rad)，失败返回 -1.0f
   */
 float encoder_read_electrical_angle(void);
 
@@ -131,7 +131,5 @@ encoder_status_t encoder_set_zero_temp(void);
   * @brief  清除编码器错误标志
   */
 void encoder_clear_error(void);
-
-void encoder_spi_debug(void);
 
 #endif  // FOC_ENCODER_H

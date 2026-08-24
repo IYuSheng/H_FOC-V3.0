@@ -1,4 +1,4 @@
-#include "foc_conversion.h"
+﻿#include "foc_conversion.h"
 
 pi_t iq_pid;
 pi_t id_pid;
@@ -14,7 +14,7 @@ AlphaBetaTypeDef alpha_beta;
  * @param angle 输入电角度（rad，范围无限制）
  * @return 归一化后电角度（rad，0~2π）
  */
-inline float angle_normalize(float angle)
+float angle_normalize(float angle)
 {
     while (angle < 0.0f)   angle += _2PI;
     while (angle >= _2PI)  angle -= _2PI;
@@ -26,43 +26,11 @@ inline float angle_normalize(float angle)
  * @param angle 输入电角度（rad，范围无限制）
  * @return 归一化后电角度（rad，-π~π）
  */
-inline float angle_normalize_pi(float angle)
+float angle_normalize_pi(float angle)
 {
     while (angle < -_PI)   angle += _2PI;
     while (angle >= _PI)  angle -= _2PI;
     return angle;
-}
-
-/**
- * @brief 电角度归一化（映射到0~360范围）
- * @param angle 输入电角度（°，范围无限制）
- * @return 归一化后电角度（°，0~360）
- */
-inline float angle_normalize_360(float angle)
-{
-    while (angle < 0.0f)   angle += 360.0f;
-    while (angle >= 360.0f) angle -= 360.0f;
-    return angle;
-}
-
-/**
- * @brief 角度制转弧度制
- * @param deg 输入角度（°）
- * @return 转换后弧度值（rad）
- */
-inline float deg2rad(float deg)
-{
-    return deg * 0.017453292519943295f;  // π / 180
-}
-
-/**
- * @brief 弧度制转角度制
- * @param rad 输入弧度（rad）
- * @return 转换后角度值（°）
- */
-inline float rad2deg(float rad)
-{
-    return rad * 57.29577951308232f;  // 180 / π
 }
 
 static inline float clampf(float x, float min_v, float max_v)
@@ -76,9 +44,9 @@ static inline float clampf(float x, float min_v, float max_v)
  * @brief SVPWM通用扇区判断函数
  * @param u_alpha α轴目标电压（V）
  * @param u_beta  β轴目标电压（V）
- * @return 扇区编号（1~6，对应0~60°~360°）
+ * @return 扇区编号（1~6，对应一电角周期的六个扇区）
  */
-inline uint8_t svpwm_sector_calc(AlphaBetaTypeDef *alpha_beta)
+uint8_t svpwm_sector_calc(AlphaBetaTypeDef *alpha_beta)
 {
     uint8_t sector, pos1, pos2, pos3 = 0;
 
@@ -114,7 +82,7 @@ inline uint8_t svpwm_sector_calc(AlphaBetaTypeDef *alpha_beta)
  * @param T2 第二个基本矢量作用时间（s）
  * @param T0 零矢量总作用时间（s）
  */
-inline void svpwm_calc_times(AlphaBetaTypeDef *alpha_beta, SVPWM_t *svpwm, float vdc)
+void svpwm_calc_times(AlphaBetaTypeDef *alpha_beta, SVPWM_t *svpwm, float vdc)
 {
     // 1) 计算幅值平方
     float alpha = alpha_beta->alpha;
@@ -189,7 +157,7 @@ inline void svpwm_calc_times(AlphaBetaTypeDef *alpha_beta, SVPWM_t *svpwm, float
  * @param pwm_b B相比较值指针
  * @param pwm_c C相比较值指针
  */
-inline void svpwm_duty_calc(SVPWM_t *svpwm)
+void svpwm_duty_calc(SVPWM_t *svpwm)
 {
     float Ta, Tb, Tc;                 // 三相桥臂导通时间（s）
     float T0_half = svpwm->T0 / 2.0f;
@@ -246,7 +214,7 @@ inline void svpwm_duty_calc(SVPWM_t *svpwm)
  * @param alpha_beta 输出的αβ轴值
  * @param vbus 母线电压
  */
-inline void spwm_duty_calc(SPWM_t *spwm, AlphaBetaTypeDef *alpha_beta, float vbus)
+void spwm_duty_calc(SPWM_t *spwm, AlphaBetaTypeDef *alpha_beta, float vbus)
 {
     const float pwm_period = PWM_PERIOD;
     float UA = clampf(alpha_beta->alpha / vbus, -1.0f, 1.0f);
@@ -263,7 +231,7 @@ inline void spwm_duty_calc(SPWM_t *spwm, AlphaBetaTypeDef *alpha_beta, float vbu
  * @param abc_i 三相电流指针
  * @param alpha_beta 输出的αβ轴值
  */
-inline void clark_transform(void *abc_i, AlphaBetaTypeDef *alpha_beta)
+void clark_transform(void *abc_i, AlphaBetaTypeDef *alpha_beta)
 {
     foc_data_i *current_abc = (foc_data_i *)abc_i;
 
@@ -284,7 +252,7 @@ inline void clark_transform(void *abc_i, AlphaBetaTypeDef *alpha_beta)
  * @param current_abc αβ电流值
  * @param current_αβ 输出的dq轴电流值
  */
-inline void park_transform(AlphaBetaTypeDef *alpha_beta, foc_control_t *foc_ctrl, float sin_theta, float cos_theta)
+void park_transform(AlphaBetaTypeDef *alpha_beta, foc_control_t *foc_ctrl, float sin_theta, float cos_theta)
 {
     foc_ctrl->abc_dq.current_d = cos_theta * alpha_beta->alpha_i + sin_theta * alpha_beta->beta_i;
     foc_ctrl->abc_dq.current_q = -sin_theta * alpha_beta->alpha_i + cos_theta * alpha_beta->beta_i;
@@ -296,9 +264,9 @@ inline void park_transform(AlphaBetaTypeDef *alpha_beta, foc_control_t *foc_ctrl
  * @param q_ptr Q轴输入指针
  * @param alpha_ptr Alpha轴输出指针
  * @param beta_ptr Beta轴输出指针
- * @param angle 电角度(角度, 0-360度)
+ * @param angle 电角度 (rad)
  */
-inline void inv_park_transform_f32(foc_control_t *foc_ctrl, AlphaBetaTypeDef *alpha_beta, float sin_theta, float cos_theta)
+void inv_park_transform_f32(foc_control_t *foc_ctrl, AlphaBetaTypeDef *alpha_beta, float sin_theta, float cos_theta)
 {
     // 反Park变换：将旋转DQ坐标系电压转换为静止αβ坐标系电压
     alpha_beta->alpha = foc_ctrl->out_d * cos_theta - foc_ctrl->out_q * sin_theta;
@@ -311,7 +279,7 @@ inline void inv_park_transform_f32(foc_control_t *foc_ctrl, AlphaBetaTypeDef *al
  * @param actual_id 实际D轴电流
  * @return D轴电压输出
  */
-inline float foc_id_pid_calculate(float target_id, float actual_id)
+float foc_id_pid_calculate(float target_id, float actual_id)
 {
     float error = target_id - actual_id;
     float p_term = id_pid.kp * error;
@@ -335,7 +303,7 @@ inline float foc_id_pid_calculate(float target_id, float actual_id)
  * @param actual_iq 实际Q轴电流
  * @return Q轴电压输出
  */
-inline float foc_iq_pid_calculate(float target_iq, float actual_iq)
+float foc_iq_pid_calculate(float target_iq, float actual_iq)
 {
     float error = target_iq - actual_iq;
     float p_term = iq_pid.kp * error;
@@ -355,11 +323,11 @@ inline float foc_iq_pid_calculate(float target_iq, float actual_iq)
 
 /**
  * @brief 速度环PID计算
- * @param target_speed 目标速度(°/s)
- * @param actual_speed 实际速度(°/s)
+ * @param target_speed 目标速度 (rad/s)
+ * @param actual_speed 实际速度 (rad/s)
  * @return 输出值(Q轴电流)
  */
-inline float foc_speed_pid_calculate(float target_speed, float actual_speed)
+float foc_speed_pid_calculate(float target_speed, float actual_speed)
 {
     float error = (target_speed - actual_speed);
 
@@ -390,11 +358,11 @@ inline float foc_speed_pid_calculate(float target_speed, float actual_speed)
 
 /**
  * @brief 位置环PI控制器计算
- * @param target_position 目标位置（°）
- * @param current_position 当前位置（°）
- * @return PI控制器输出（速度指令，°/s）
+ * @param target_position 目标位置 (rad)
+ * @param current_position 当前位置 (rad)
+ * @return PI控制器输出（速度指令，rad/s）
  */
-inline float foc_position_pid_calculate(float target_position, float current_position)
+float foc_position_pid_calculate(float target_position, float current_position)
 {
     float error, p_term, d_term;
 

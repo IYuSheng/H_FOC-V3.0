@@ -1,6 +1,6 @@
 code/foc_cogging_compensation.o: ..\MID\foc_cogging_compensation.c \
-  ..\MID\foc_cogging_compensation.h ..\APP\foc_control.h \
-  ..\APP\foc_setting.h ..\Core\Inc\main.h ..\APP\FOC_Init.h \
+  ..\MID\foc_cogging_compensation.h ..\APP\foc_control.h ..\APP\Config.h \
+  ..\Core\Inc\adc.h ..\Core\Inc\main.h ..\APP\FOC_Init.h \
   ..\Drivers\STM32G4xx_HAL_Driver\Inc\stm32g4xx_hal.h \
   ..\Core\Inc\stm32g4xx_hal_conf.h \
   ..\Drivers\STM32G4xx_HAL_Driver\Inc\stm32g4xx_hal_rcc.h \
@@ -40,11 +40,12 @@ code/foc_cogging_compensation.o: ..\MID\foc_cogging_compensation.c \
   ..\Drivers\STM32G4xx_HAL_Driver\Inc\stm32g4xx_ll_tim.h \
   ..\Drivers\STM32G4xx_HAL_Driver\Inc\stm32g4xx_ll_usart.h \
   ..\Drivers\STM32G4xx_HAL_Driver\Inc\stm32g4xx_ll_gpio.h \
-  ..\Core\Inc\adc.h ..\Core\Inc\cordic.h ..\Core\Inc\spi.h \
-  ..\Core\Inc\tim.h ..\Core\Inc\usart.h ..\Core\Inc\gpio.h \
-  ..\APP\foc_encoder.h ..\MID\foc_conversion.h ..\APP\Config.h \
-  ..\APP\foc_sys.h ..\MID\foc_communication.h ..\MID\foc_prase.h \
-  ..\Core\Inc\fdcan.h ..\MID\foc_vibration_sweep.h \
-  ..\APP\foc_Parameteridentifikation.h ..\MID\foc_trajectory_planning.h \
-  ..\MID\foc_sensorless.h ..\MID\foc_filter.h ..\MID\foc_ladrc.h \
-  ..\MID\foc_encoder_calibration.h ..\MID\foc_trapezoid_planner.h
+  ..\Core\Inc\cordic.h ..\Core\Inc\spi.h ..\Core\Inc\tim.h \
+  ..\Core\Inc\usart.h ..\Core\Inc\gpio.h ..\APP\foc_encoder.h \
+  ..\MID\foc_conversion.h ..\APP\foc_sys.h ..\MID\foc_communication.h \
+  ..\MID\foc_prase.h ..\Core\Inc\fdcan.h \
+  ..\APP\foc_Parameteridentifikation.h ..\MID\foc_encoder_calibration.h \
+  ..\MID\foc_filter.h ..\MID\foc_ladrc.h ..\MID\foc_mechanical_param.h \
+  ..\MID\foc_sensorless.h ..\APP\foc_setting.h \
+  ..\MID\foc_trajectory_planning.h ..\MID\foc_trapezoid_planner.h \
+  ..\MID\foc_vibration_sweep.h

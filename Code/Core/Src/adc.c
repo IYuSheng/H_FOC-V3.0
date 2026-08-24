@@ -97,7 +97,7 @@ void MX_ADC1_Init(void)
   /* 注入组专门服务电流环，两个通道分别采PA1/IN2和PA2/IN3。 */
   LL_ADC_SetChannelSingleDiff(ADC1, LL_ADC_CHANNEL_2, LL_ADC_SINGLE_ENDED);
   LL_ADC_SetChannelSamplingTime(ADC1, LL_ADC_CHANNEL_2, LL_ADC_SAMPLINGTIME_24CYCLES_5);
-  
+
   LL_ADC_SetChannelSingleDiff(ADC1, LL_ADC_CHANNEL_3, LL_ADC_SINGLE_ENDED);
   LL_ADC_SetChannelSamplingTime(ADC1, LL_ADC_CHANNEL_3, LL_ADC_SAMPLINGTIME_24CYCLES_5);
 
@@ -139,7 +139,7 @@ void MX_ADC1_Init(void)
   }
   LL_ADC_ClearFlag_ADRDY(ADC1);
 
-  NVIC_SetPriority(ADC1_2_IRQn, 0);
+  NVIC_SetPriority(ADC1_2_IRQn, 1);
 
   LL_ADC_REG_StartConversion(ADC1);
 }

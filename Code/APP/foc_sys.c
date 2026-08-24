@@ -40,15 +40,11 @@ void TIM1_BRK_TIM15_IRQHandler(void)
 {
     if (LL_TIM_IsActiveFlag_CC1(TIM15)) {
         LL_TIM_ClearFlag_CC1(TIM15);
-        // encoder_spi_debug();
 #if FOC_ENCODER_CALIBRATION_ENABLE && !FOC_ENCODER_CALIBRATION_USE_CONST_TABLE
         foc_encoder_calibration_set_raw(encoder_read_raw_angle());
 #else
         encoder_read_electrical_angle();
         encoder_read_mechanical_angle();
-#endif
-#if 0
-    encoder_get_mechanical_speed();
 #endif
     }
 }

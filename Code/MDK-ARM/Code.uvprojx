@@ -846,6 +846,16 @@
               <FileType>5</FileType>
               <FilePath>..\MID\foc_encoder_calibration.h</FilePath>
             </File>
+            <File>
+              <FileName>foc_mechanical_param.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MID\foc_mechanical_param.c</FilePath>
+            </File>
+            <File>
+              <FileName>foc_mechanical_param.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\MID\foc_mechanical_param.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

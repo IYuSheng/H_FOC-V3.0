@@ -85,22 +85,24 @@ virtualFolder:
         - path: MID/foc_conversion.h
         - path: MID/foc_filter.c
         - path: MID/foc_filter.h
+        - path: MID/foc_ladrc.c
+        - path: MID/foc_ladrc.h
+        - path: MID/foc_vibration_sweep.c
+        - path: MID/foc_vibration_sweep.h
+        - path: MID/foc_cogging_compensation.c
+        - path: MID/foc_cogging_compensation.h
         - path: MID/foc_communication.c
         - path: MID/foc_communication.h
         - path: MID/foc_prase.c
         - path: MID/foc_prase.h
-        - path: MID/foc_sensorless.c
-        - path: MID/foc_sensorless.h
-        - path: MID/foc_encoder_calibration.c
-        - path: MID/foc_encoder_calibration.h
-        - path: MID/foc_trajectory_planning.c
-        - path: MID/foc_trajectory_planning.h
         - path: MID/foc_trapezoid_planner.c
         - path: MID/foc_trapezoid_planner.h
-        - path: MID/foc_vibration_sweep.c
-        - path: MID/foc_vibration_sweep.h
-        - path: MID/foc_ladrc.c
-        - path: MID/foc_ladrc.h
+        - path: MID/foc_trajectory_planning.c
+        - path: MID/foc_trajectory_planning.h
+        - path: MID/foc_encoder_calibration.c
+        - path: MID/foc_encoder_calibration.h
+        - path: MID/foc_mechanical_param.c
+        - path: MID/foc_mechanical_param.h
       folders: []
     - name: ::CMSIS
       files: []
@@ -130,31 +132,15 @@ targets:
         - MDK-ARM/RTE/_Code
       libList: []
     excludeList: []
-    settings: {}
+    settings:
+      debugger: cortex-debug
     toolchain: AC6
     toolchainConfigMap:
       AC5:
         archExtensions: ""
         cpuType: Cortex-M4
         floatingPointHardware: single
-        options:
-          version: 4
-          afterBuildTasks: []
-          asm-compiler: {}
-          beforeBuildTasks: []
-          c/cpp-compiler:
-            CXX_FLAGS: --diag_suppress=1 --diag_suppress=1295
-            C_FLAGS: --diag_suppress=1 --diag_suppress=1295
-            c99-mode: true
-            one-elf-section-per-function: true
-            optimization: level-0
-          global:
-            output-debug-info: enable
-            use-microLIB: false
-          linker:
-            $outputTaskExcludes:
-              - .bin
-            output-format: elf
+        options: ""
         scatterFilePath: <YOUR_SCATTER_FILE>.sct
         storageLayout:
           RAM:

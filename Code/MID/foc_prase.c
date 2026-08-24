@@ -16,6 +16,7 @@ void parse_received_data(char* data, uint8_t len)
 {
     (void)len; // 避免未使用参数警告
     
+    // UART angular commands use SI units: rad and rad/s.
     char* tpos_start = strstr(data, "target_position:");
     if(tpos_start != NULL) {
         // 找到冒号后的位置

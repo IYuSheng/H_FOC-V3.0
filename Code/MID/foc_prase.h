@@ -5,9 +5,9 @@
 
 // 定义用于存储解析数据的结构体
 typedef struct {
-    float target_position;
+    float target_position;          // rad
     uint8_t target_position_valid;  // 标记该值是否已接收
-    float target_speed;
+    float target_speed;             // rad/s
     uint8_t target_speed_valid;
     float current_q;
     uint8_t current_q_valid;

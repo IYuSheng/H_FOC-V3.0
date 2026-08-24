@@ -149,7 +149,7 @@ encoder_status_t encoder_init(void)
 
 /**
   * @brief  读取编码器原始角度值（14位）
-  * @note   读取14位原始角度值，范围0~16383（对应0~360度）
+  * @note   读取14位原始角度值，范围0~16383（对应一机械角周期）
   * @param  无
   * @retval uint16_t: 原始角度值（0~16383），失败返回0xFFFF
   */
@@ -181,41 +181,10 @@ uint16_t encoder_read_raw_angle(void)
     return raw_angle;
 }
 
-void encoder_spi_debug(void)
-{
-    uint8_t r00 = encoder_read_reg(0x00);
-    uint8_t r01 = encoder_read_reg(0x01);
-    uint8_t r03 = encoder_read_reg(0x03);
-    uint8_t r04 = encoder_read_reg(0x04);
-    uint8_t r05 = encoder_read_reg(0x05);
-
-    uint16_t angle_frame = ((uint16_t)r03 << 8) | r04;
-    uint16_t raw = angle_frame >> 2;
-    uint8_t no_mag = (r04 >> 1) & 0x01;
-    uint8_t pc = r04 & 0x01;
-    uint8_t over_speed = (r05 >> 3) & 0x01;
-    uint8_t r05_as_angle_l = r05 >> 2;
-    uint16_t raw05 = ((uint16_t)r03 << 6) | r05_as_angle_l;
-    int16_t raw05_diff = (int16_t)raw05 - (int16_t)raw;
-
-    uint8_t ones = 0;
-    for (uint8_t i = 0; i < 16; i++) {
-        if (angle_frame & (1U << i)) ones++;
-    }
-
-    uint8_t comm_ok = (angle_frame != 0xFFFFU);
-    uint8_t parity_ok = encoder_angle_frame_parity_ok(angle_frame);
-
-    debug_log("00=%02X 01=%02X 03=%02X 04=%02X 05=%02X raw=%u raw05=%u d05=%d r05_l6=%u no_mag=%u over_speed=%u pc=%u ones=%u comm=%u parity=%u\r\n",
-              r00, r01, r03, r04, r05, raw, raw05, raw05_diff, r05_as_angle_l,
-              no_mag, over_speed, pc, ones, comm_ok, parity_ok);
-}
-
-
 pos_obs_t g_pos_obs = {0};
 
 // 观测器带宽
-#define POS_OBS_BW_HZ  (40.0f)
+#define POS_OBS_BW_HZ  (60.0f)
 #define POS_OBS_BW     (2.0f * _PI * POS_OBS_BW_HZ)
 
 /**
@@ -245,22 +214,22 @@ static inline void pos_obs_update(float theta_meas, float dt)
 
     /* position residual */
     float e = theta_meas - theta_pred;
-    while (e > 180.0f) {
-        e -= 360.0f;
+    while (e > _PI) {
+        e -= _2PI;
     }
-    while (e < -180.0f) {
-        e += 360.0f;
+    while (e < -_PI) {
+        e += _2PI;
     }
 
     /* 状态校正 */
-    g_pos_obs.theta_hat = angle_normalize_360(theta_pred + Kp * dt * e);
+    g_pos_obs.theta_hat = angle_normalize(theta_pred + Kp * dt * e);
     g_pos_obs.omega_hat = omega_pred + Kv * dt * e;
 }
 
 /**
-  * @brief  读取编码器累计角度（格式：圈数×360 + 当前角度）
-  * @note   正转：圈数递增，如1圈30°→1×360+30=390；反转：圈数递减，如-1圈30°→-1×360+30=-330
-  * @retval float: 累计角度（圈数×360 + 当前角度）
+  * @brief  更新编码器单圈机械角度和多圈机械位置
+  * @note   多圈位置格式为 turns * 2*pi + current_angle，单位 rad
+  * @retval float: 单圈机械角度 [0, 2*pi)，单位 rad
   */
 float encoder_read_mechanical_angle(void)
 {
@@ -271,35 +240,37 @@ float encoder_read_mechanical_angle(void)
     if (first_run != 0U) {
         encoder_data.mechanical_angle = current_angle;
         encoder_data.mechanical_position =
-            ((float)encoder_data.mechanical_turns * 360.0f) + current_angle;
+            ((float)encoder_data.mechanical_turns * _2PI) + current_angle;
         last_raw = current_angle;
         first_run = 0U;
 
         pos_obs_update(encoder_data.mechanical_angle, PWM_PERIOD_S);
         encoder_data.mechanical_speed = g_pos_obs.omega_hat;
-        encoder_data.electrical_speed = deg2rad(encoder_data.mechanical_speed * MOTOR_POLE_PAIRS);
+        encoder_data.electrical_speed =
+            encoder_data.mechanical_speed * MOTOR_POLE_PAIRS;
         return encoder_data.mechanical_angle;
     }
 
     float delta = current_angle - last_raw;
 
-    if (delta > 180.0f) {
-        delta -= 360.0f;
+    if (delta > _PI) {
+        delta -= _2PI;
         encoder_data.mechanical_turns--;
-    } else if (delta < -180.0f) {
-        delta += 360.0f;
+    } else if (delta < -_PI) {
+        delta += _2PI;
         encoder_data.mechanical_turns++;
     }
 
     encoder_data.mechanical_angle = current_angle;
     encoder_data.mechanical_position =
-        ((float)encoder_data.mechanical_turns * 360.0f) + current_angle;
+        ((float)encoder_data.mechanical_turns * _2PI) + current_angle;
     last_raw = current_angle;
 
     pos_obs_update(encoder_data.mechanical_angle, PWM_PERIOD_S);
 
     encoder_data.mechanical_speed = g_pos_obs.omega_hat;
-    encoder_data.electrical_speed = deg2rad(encoder_data.mechanical_speed * MOTOR_POLE_PAIRS);
+    encoder_data.electrical_speed =
+        encoder_data.mechanical_speed * MOTOR_POLE_PAIRS;
     return encoder_data.mechanical_angle;
 }
 
@@ -307,7 +278,7 @@ float encoder_read_mechanical_angle(void)
   * @brief  读取编码器电角度
   * @note   将机械角度乘以极对数得到电角度，用于FOC控制中的磁场定向
   * @param  无
-  * @retval float: 电角度值（度），失败返回-1.0f
+  * @retval float: 电角度值 (rad)，失败返回-1.0f
   */
 float encoder_read_electrical_angle(void)
 {
@@ -328,13 +299,14 @@ float encoder_read_electrical_angle(void)
     {
         encoder_data.angle_raw_scaled = calibrated_mechanical_angle;
         encoder_data.electrical_angle =
-            angle_normalize_360(calibrated_electrical_angle + 90.0f);
+            angle_normalize(calibrated_electrical_angle + _PI_2);
         return encoder_data.electrical_angle;
     }
 #endif
 
     encoder_data.angle_raw_scaled = (encoder_data.raw_angle * ENCODER_ANGLE_SCALE);
-    encoder_data.electrical_angle = angle_normalize_360(encoder_data.angle_raw_scaled * MOTOR_POLE_PAIRS);
+    encoder_data.electrical_angle =
+        angle_normalize(encoder_data.angle_raw_scaled * MOTOR_POLE_PAIRS);
     return encoder_data.electrical_angle;
 }
 

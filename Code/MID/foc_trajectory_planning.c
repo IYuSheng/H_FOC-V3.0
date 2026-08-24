@@ -19,9 +19,9 @@
 /**
  * @brief 初始化S曲线规划器
  * @param planner 规划器结构体指针
- * @param vmax    最大速度限制 (单位：deg/s 或 rad/s)
- * @param amax    最大加速度限制 (单位：deg/s²)
- * @param jmax    最大加加速度(Jerk)限制 (单位：deg/s³)
+ * @param vmax    最大速度限制 (单位：rad/s)
+ * @param amax    最大加速度限制 (单位：rad/s²)
+ * @param jmax    最大加加速度(Jerk)限制 (单位：rad/s³)
  * @param freq_t  控制周期 (单位：s，如1kHz则填0.001)
  * 
  * @note 初始化后状态为 IDLE，需调用 set_target 启动规划
@@ -65,7 +65,7 @@ uint8_t s_curve_set_target(SCurve_Planner_t *planner, float current_pos, float t
     float S = fabsf(dist);
     
     /* 距离过短，直接视为到达 */
-    if (S < 0.001f) {
+    if (S < 0.0000174532925f) {
         planner->state = S_CURVE_IDLE;
         planner->is_busy = 0;
         return 0;

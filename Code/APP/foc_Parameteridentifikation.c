@@ -1,8 +1,9 @@
 #include "foc_Parameteridentifikation.h"
+#include "cordic.h"
 
 typedef enum {
     PARAM_ID_IDLE = 0,       // 待机
-    PARAM_ID_ALIGN_LOCK,     // 用D轴直流电压把转子拉到固定电角度（0°）
+    PARAM_ID_ALIGN_LOCK,     // 用D轴直流电压把转子拉到固定电角度 (0 rad)
     PARAM_ID_RS_SETTLE,      // Rs：直流注入等待稳定
     PARAM_ID_RS_SAMPLE,      // Rs：采样平均电流
     PARAM_ID_LD_HF_RUN,      // Ld：D轴注入高频正弦（零均值）
@@ -50,7 +51,7 @@ typedef struct {
     uint32_t flux_linkage_cnt;
 
     // 输出/测量使用的固定角度
-    float ident_angle_deg;  // 这里用 0°：d=alpha, q=beta
+    float ident_angle_rad;  // 这里用 0 rad：d=alpha, q=beta
 } motor_ident_t;
 
 // 辨识结果
@@ -58,7 +59,7 @@ static motor_param_t  g_motor_param = {0};
 static motor_ident_t  g_ident = {0};
 
 // 把(out_d,out_q,angle) 走 invPark + SVPWM + PWM输出（辨识/开环/闭环共用）
-static inline void foc_voltage_output(float out_d, float out_q, float angle_deg)
+static inline void foc_voltage_output(float out_d, float out_q, float angle_rad)
 {
     // 估算最大可用相电压矢量幅值（SVPWM线性区近似：Vmax ≈ Vbus/sqrt(3)）
     float vbus = foc_voltage_data.vbus;
@@ -73,10 +74,10 @@ static inline void foc_voltage_output(float out_d, float out_q, float angle_deg)
 
     foc_ctrl.out_d = out_d;
     foc_ctrl.out_q = out_q;
-    foc_ctrl.angle = angle_deg;
+    foc_ctrl.angle = angle_rad;
 
     float sin_theta, cos_theta;
-    arm_sin_cos_f32(angle_deg, &sin_theta, &cos_theta);
+    CORDIC_SinCos_Rad(angle_rad, &sin_theta, &cos_theta);
 
     inv_park_transform_f32(&foc_ctrl, &alpha_beta, sin_theta, cos_theta);
 
@@ -100,7 +101,7 @@ void foc_motor_param_ident_start(float v_align, float v_rs, float hf_freq, float
     g_ident.v_hf     = v_hf;
     g_ident.v_lock_d = v_lock_d;
 
-    g_ident.ident_angle_deg = 0.0f;
+    g_ident.ident_angle_rad = 0.0f;
 
     // 时间参数（按你PWM频率换算）
     g_ident.align_ticks     = (uint32_t)(PWM_FREQ * 0.20f); // 200ms对齐锁定
@@ -128,11 +129,11 @@ uint8_t foc_motor_param_ident_is_running(void)
 // 在PWM中断里调用：执行一步自辨识
 void foc_motor_parameter_ident_step(void)
 {
-    // 1) 采样电流（辨识角度固定0°：d=alpha, q=beta）
+    // 1) 采样电流（辨识角度固定 0 rad：d=alpha, q=beta）
     clark_transform(&foc_current_data, &alpha_beta);
 
     float sin_theta, cos_theta;
-    arm_sin_cos_f32(g_ident.ident_angle_deg, &sin_theta, &cos_theta);
+    CORDIC_SinCos_Rad(g_ident.ident_angle_rad, &sin_theta, &cos_theta);
     park_transform(&alpha_beta, &foc_ctrl, sin_theta, cos_theta);
 
     // 2) 状态机
@@ -140,8 +141,8 @@ void foc_motor_parameter_ident_step(void)
     {
         case PARAM_ID_ALIGN_LOCK:
         {
-            // 用D轴直流电压把转子“拉住”到 0° 附近
-            foc_voltage_output(g_ident.v_align, 0.0f, g_ident.ident_angle_deg);
+            // 用D轴直流电压把转子“拉住”到 0 rad 附近
+            foc_voltage_output(g_ident.v_align, 0.0f, g_ident.ident_angle_rad);
 
             if (++g_ident.st_tick >= g_ident.align_ticks) {
                 g_ident.st_tick = 0;
@@ -153,7 +154,7 @@ void foc_motor_parameter_ident_step(void)
         case PARAM_ID_RS_SETTLE:
         {
             // Rs测试：施加D轴直流电压，等待电流进入稳态
-            foc_voltage_output(g_ident.v_rs, 0.0f, g_ident.ident_angle_deg);
+            foc_voltage_output(g_ident.v_rs, 0.0f, g_ident.ident_angle_rad);
 
             if (++g_ident.st_tick >= g_ident.rs_settle_ticks) {
                 g_ident.st_tick = 0;
@@ -167,7 +168,7 @@ void foc_motor_parameter_ident_step(void)
         case PARAM_ID_RS_SAMPLE:
         {
             // 继续保持直流注入并采样 |i_d|
-            foc_voltage_output(g_ident.v_rs, 0.0f, g_ident.ident_angle_deg);
+            foc_voltage_output(g_ident.v_rs, 0.0f, g_ident.ident_angle_rad);
 
             float id = foc_ctrl.abc_dq.current_d;
             g_ident.i_sum_abs += fabsf(id);
@@ -202,7 +203,7 @@ void foc_motor_parameter_ident_step(void)
             float t = (float)g_ident.st_tick / PWM_FREQ;
             float vd = g_ident.v_hf * sinf(_2PI * g_ident.hf_freq * t);
 
-            foc_voltage_output(vd, 0.0f, g_ident.ident_angle_deg);
+            foc_voltage_output(vd, 0.0f, g_ident.ident_angle_rad);
 
             // 跳过前2周期，采样后5周期
             if (g_ident.st_tick >= g_ident.hf_skip_ticks &&
@@ -254,7 +255,7 @@ void foc_motor_parameter_ident_step(void)
             float t = (float)g_ident.st_tick / PWM_FREQ;
             float vq = g_ident.v_hf * sinf(_2PI * g_ident.hf_freq * t);
 
-            foc_voltage_output(g_ident.v_lock_d, vq, g_ident.ident_angle_deg);
+            foc_voltage_output(g_ident.v_lock_d, vq, g_ident.ident_angle_rad);
 
             if (g_ident.st_tick >= g_ident.hf_skip_ticks &&
                 g_ident.st_tick < (g_ident.hf_skip_ticks + g_ident.hf_sample_ticks))
@@ -308,7 +309,7 @@ void foc_motor_parameter_ident_step(void)
             foc_ctrl.angle = encoder_data.electrical_angle;
 
             float sin_theta, cos_theta;
-            arm_sin_cos_f32(foc_ctrl.angle, &sin_theta, &cos_theta);
+            CORDIC_SinCos_Rad(foc_ctrl.angle, &sin_theta, &cos_theta);
 
             // 将alpha-beta坐标系电流转换为DQ坐标系电流
             park_transform(&alpha_beta, &foc_ctrl, sin_theta, cos_theta);
@@ -364,7 +365,7 @@ void foc_motor_parameter_ident_step(void)
         case PARAM_ID_COMPLETED:
         {
             // 停止注入
-            foc_voltage_output(0.0f, 0.0f, g_ident.ident_angle_deg);
+            foc_voltage_output(0.0f, 0.0f, g_ident.ident_angle_rad);
             g_ident.running = 0;
             g_ident.st = PARAM_ID_IDLE;
         } break;
@@ -372,7 +373,7 @@ void foc_motor_parameter_ident_step(void)
         case PARAM_ID_ABORT:
         default:
         {
-            foc_voltage_output(0.0f, 0.0f, g_ident.ident_angle_deg);
+            foc_voltage_output(0.0f, 0.0f, g_ident.ident_angle_rad);
             g_ident.running = 0;
             g_ident.st = PARAM_ID_IDLE;
             debug_log("[PARAM_ID] ABORT");

@@ -70,7 +70,7 @@ void trapezoid_planner_init(TrapezoidPlanner_t *planner,
     planner->velocity_setpoint = 0.0f;
     planner->acceleration_setpoint = 0.0f;
     planner->target_position = 0.0f;
-    planner->tolerance = 0.001f;
+    planner->tolerance = 0.0000174532925f;
     planner->active = 0U;
 }
 
@@ -151,7 +151,7 @@ void trapezoid_planner_set_tolerance(TrapezoidPlanner_t *planner,
  * 6. 若本周期会越过目标点，则直接钳位到目标点并清零速度。
  *
  * @note 该函数是“在线型”规划器，target_position 可以每个周期更新。
- *       对 3D 打印机来说，位置单位可以是 mm；用于电机角度控制时也可以是 deg。
+ *       对 3D 打印机来说，位置单位可以是 mm；本电机角度控制使用 rad。
  *       current_position 只用于空指针保护返回和外部 reset 对齐，规划推进使用内部
  *       position_setpoint，避免实际位置滞后时把轨迹给定拖慢。
  */

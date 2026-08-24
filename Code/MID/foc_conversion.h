@@ -1,4 +1,4 @@
-#ifndef __FOC_CONVERSION_H
+﻿#ifndef __FOC_CONVERSION_H
 #define __FOC_CONVERSION_H
 
 #include "Config.h"
@@ -49,10 +49,11 @@ typedef struct
  float target_q;         // 目标Q轴电流
  float angle;            // 电角度(弧度)
  float speed;            // 速度（rad/s）
- float speed_rpm;        // 速度（rpm）
- float target_speed;     // 目标速度(rpm)
- float target_position;  // 目标位置（°）
- float shaped_t_p;       // 整形后目标位置
+ float target_speed;     // 目标机械角速度 (rad/s)
+ float target_position;  // 目标机械位置 (rad)
+ float shaped_t_p;       // 整形后目标位置 (rad)
+ float shaped_t_v;       // 规划目标速度 (rad/s)
+ float shaped_t_a;       // 规划目标加速度 (rad/s^2)
  float Te;               // 电磁转矩（N·m）
  uint8_t sensor_mode;        // 传感器模式
  struct
@@ -90,42 +91,21 @@ extern SPWM_t spwm;
 * @param angle 输入电角度（rad，范围无限制）
 * @return 归一化后电角度（rad，0~2π）
 */
-extern inline float angle_normalize(float angle);
+float angle_normalize(float angle);
 
 /**
  * @brief 电角度归一化（映射到-π~π范围）
  * @param angle 输入电角度（rad，范围无限制）
  * @return 归一化后电角度（rad，-π~π）
  */
-extern inline float angle_normalize_pi(float angle);
-
-/**
- * @brief 电角度归一化（映射到0~360范围）
- * @param angle 输入电角度（°，范围无限制）
- * @return 归一化后电角度（°，0~360）
- */
-extern inline float angle_normalize_360(float angle);
-
-/**
- * @brief 角度制转弧度制
- * @param deg 输入角度（°）
- * @return 转换后弧度值（rad）
- */
-extern inline float deg2rad(float deg);
-
-/**
- * @brief 弧度制转角度制
- * @param rad 输入弧度（rad）
- * @return 转换后角度值（°）
- */
-extern inline float rad2deg(float rad);
+float angle_normalize_pi(float angle);
 
 /**
 * @brief SVPWM通用扇区判断函数
 * @param alpha_beta αβ坐标系下的电压指针
-* @return 扇区编号（1~6，对应0~60°~360°）
+* @return 扇区编号（1~6，对应一电角周期的六个扇区）
 */
-extern inline uint8_t svpwm_sector_calc(AlphaBetaTypeDef *alpha_beta);
+uint8_t svpwm_sector_calc(AlphaBetaTypeDef *alpha_beta);
 
 /**
 * @brief SVPWM基本矢量作用时间计算
@@ -133,13 +113,13 @@ extern inline uint8_t svpwm_sector_calc(AlphaBetaTypeDef *alpha_beta);
 * @param svpwm SVPWM结构体指针
 * @param vdc 母线电压（V）
 */
-extern inline void svpwm_calc_times(AlphaBetaTypeDef *alpha_beta, SVPWM_t *svpwm, float vdc);
+void svpwm_calc_times(AlphaBetaTypeDef *alpha_beta, SVPWM_t *svpwm, float vdc);
 
 /**
 * @brief SVPWM计算三相导通时间并转换为比较值
 * @param svpwm SVPWM结构体指针
 */
-extern inline void svpwm_duty_calc(SVPWM_t *svpwm);
+void svpwm_duty_calc(SVPWM_t *svpwm);
 
 /**
  * @brief 生成单极性倍频SPWM波
@@ -147,21 +127,21 @@ extern inline void svpwm_duty_calc(SVPWM_t *svpwm);
  * @param alpha_beta 输出的αβ轴值
  * @param vbus 母线电压
  */
-extern inline void spwm_duty_calc(SPWM_t *spwm, AlphaBetaTypeDef *alpha_beta, float vbus);
+void spwm_duty_calc(SPWM_t *spwm, AlphaBetaTypeDef *alpha_beta, float vbus);
 
 /**
 * @brief 将三相电流转换为αβ坐标系下的值
 * @param abc_i 三相电流指针
 * @param alpha_beta 输出的αβ轴值
 */
-extern inline void clark_transform(void *abc_i, AlphaBetaTypeDef *alpha_beta);
+void clark_transform(void *abc_i, AlphaBetaTypeDef *alpha_beta);
 
 /**
  * @brief 将αβ转换为dq坐标系下的电流值
  * @param current_abc αβ电流值
  * @param current_αβ 输出的dq轴电流值
  */
-extern inline void park_transform(AlphaBetaTypeDef *alpha_beta, foc_control_t *foc_ctrl, float sin_theta, float cos_theta);
+void park_transform(AlphaBetaTypeDef *alpha_beta, foc_control_t *foc_ctrl, float sin_theta, float cos_theta);
 
 /**
  * @brief 反Park变换
@@ -169,9 +149,9 @@ extern inline void park_transform(AlphaBetaTypeDef *alpha_beta, foc_control_t *f
  * @param q_ptr Q轴输入指针
  * @param alpha_ptr Alpha轴输出指针
  * @param beta_ptr Beta轴输出指针
- * @param angle 电角度(角度, 0-360度)
+ * @param angle 电角度 (rad)
  */
-extern inline void inv_park_transform_f32(foc_control_t *foc_ctrl, AlphaBetaTypeDef *alpha_beta, float sin_theta, float cos_theta);
+void inv_park_transform_f32(foc_control_t *foc_ctrl, AlphaBetaTypeDef *alpha_beta, float sin_theta, float cos_theta);
 
 /**
 * @brief D轴电流环PID计算
@@ -179,7 +159,7 @@ extern inline void inv_park_transform_f32(foc_control_t *foc_ctrl, AlphaBetaType
 * @param actual_id 实际D轴电流
 * @return D轴电压输出
 */
-extern inline float foc_id_pid_calculate(float target_id, float actual_id);
+float foc_id_pid_calculate(float target_id, float actual_id);
 
 /**
 * @brief Q轴电流环PID计算
@@ -187,22 +167,22 @@ extern inline float foc_id_pid_calculate(float target_id, float actual_id);
 * @param actual_iq 实际Q轴电流
 * @return Q轴电压输出
 */
-extern inline float foc_iq_pid_calculate(float target_iq, float actual_iq);
+float foc_iq_pid_calculate(float target_iq, float actual_iq);
 
 /**
 * @brief 速度环PID计算
-* @param target_speed 目标速度(°/s)
-* @param actual_speed 实际速度(°/s)
+* @param target_speed 目标速度 (rad/s)
+* @param actual_speed 实际速度 (rad/s)
 * @return 输出值(Q轴电流)
 */
-extern inline float foc_speed_pid_calculate(float target_speed, float actual_speed);
+float foc_speed_pid_calculate(float target_speed, float actual_speed);
 
 /**
 * @brief 位置环PI控制器计算
 * @param target_position 目标位置（弧度）
 * @param current_position 当前位置（弧度）
-* @return PI控制器输出（速度指令，°/s）
+* @return PI控制器输出（速度指令，rad/s）
 */
-extern inline float foc_position_pid_calculate(float target_position, float current_position);
+float foc_position_pid_calculate(float target_position, float current_position);
 
 #endif /* __FOC_CONVERSION_H */

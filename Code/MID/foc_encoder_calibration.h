@@ -7,7 +7,7 @@
 #define FOC_ENCODER_CALIBRATION_ENABLE 0
 #endif
 
-/** 编码器校准扇区数量，1.8° 步进电机一圈对应 200 个整步 */
+/** 编码器校准扇区数量，200 个整步对应一个机械角周期 */
 #define FOC_ENCODER_CALIBRATION_SECTOR_COUNT 200U
 /** Encoder magnetic periods per mechanical revolution. */
 #ifndef FOC_ENCODER_CALIBRATION_SENSOR_PERIODS_PER_REV
@@ -99,9 +99,9 @@ typedef struct
     uint16_t active_sector;   /**< 当前正在校准的扇区编号 */
     uint16_t sample_count;    /**< 已采集的校准点数量或当前点采样次数 */
     uint32_t phase_tick;      /**< 当前状态持续的电流环 tick 数 */
-    float command_angle_deg;  /**< 当前开环指令电角度，单位：度 */
-    float target_angle_deg;   /**< 当前开环目标电角度，单位：度 */
-    float start_angle_deg;    /**< 找零/对齐后的电角度基准，单位：度 */
+    float command_angle_rad;  /**< 当前开环指令电角度，单位：rad */
+    float target_angle_rad;   /**< 当前开环目标电角度，单位：rad */
+    float start_angle_rad;    /**< 找零/对齐后的电角度基准，单位：rad */
     uint16_t dir_check_raw;   /**< 方向检测起始原始值 */
     uint16_t prev_processed_raw; /**< 找零时上一次处理后的原始值 */
     int32_t sample_reference; /**< 当前点环形平均参考值 */
@@ -140,8 +140,8 @@ void foc_encoder_calibration_open_loop_calibrate(void);
 /**
  * @brief 将编码器原始角度线性化为 FOC 使用角度
  * @param raw_angle MT6816 原始角度，范围 0~16383
- * @param electrical_angle 输出电角度，单位：度，范围 0~360
- * @param mechanical_angle 输出机械角度，单位：度；多磁周期编码器下为单个磁周期内角度
+ * @param electrical_angle 输出电角度，单位：rad，范围 [0, 2*pi)
+ * @param mechanical_angle 输出机械角度，单位：rad；多磁周期编码器下为单个磁周期内角度
  * @return 1 表示转换成功，0 表示未校准或输入无效
  */
 uint8_t foc_encoder_calibration_linearize(uint16_t raw_angle,

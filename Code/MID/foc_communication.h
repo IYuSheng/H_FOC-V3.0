@@ -10,10 +10,10 @@ extern uint8_t g_local_node_id;  // 本关节 ID
 typedef struct
 {
     float target_current;
-    float target_angle;
-    float target_velocity;
-    float target_acceleration;
-    float target_jerk;
+    float target_angle;        // rad
+    float target_velocity;     // rad/s
+    float target_acceleration; // rad/s^2
+    float target_jerk;         // rad/s^3
     float stiffness;
     float damping;
     uint8_t control_mode;
