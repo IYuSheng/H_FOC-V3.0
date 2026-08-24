@@ -7,10 +7,12 @@ mech_identify_t g_mech_identify = {0};
 
 /* 静态函数声明 */
 static void mech_identify_reset(void);
+#if FOC_MECH_PARAM_IDENTIFY_ENABLE
 static void mech_identify_calculate(void);
 static void mech_identify_accumulate_weighted(float iq, float speed, float accel, float weight);
 static bool mech_solve_linear4(float A[4][4], float b[4], float x[4]);
 static float mech_calc_huber_weight(float residual);
+#endif
 
 /* 初始化 */
 void foc_mechanical_param_init(void)
@@ -82,6 +84,7 @@ const mech_identify_result_t* foc_mechanical_param_get_result(void)
     return &g_mech_identify.result;
 }
 
+#if FOC_MECH_PARAM_IDENTIFY_ENABLE
 /* Huber 权重计算 */
 static float mech_calc_huber_weight(float residual)
 {
@@ -282,6 +285,7 @@ static void mech_identify_calculate(void)
 
     g_mech_identify.state = MECH_IDENTIFY_COMPLETE;
 }
+#endif
 
 /**
  * @brief 主处理函数

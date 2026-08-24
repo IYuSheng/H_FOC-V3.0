@@ -58,7 +58,7 @@ void FDCAN_RxCallback(can_frame_t *frame)
                 return;
             }
             if (frame->len >= sizeof(joint_status_t)) {
-                joint_status_t *status = (joint_status_t *)frame->data;
+                /* status 消息处理暂未实现 */
             }
             break;
 

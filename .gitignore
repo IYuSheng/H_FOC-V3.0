@@ -1,0 +1,16 @@
+# CMake 编译产物
+/build/
+
+# 工具链本地缓存 / 自动生成配置（eide、Claude Code 等）
+Code/.pack/
+Code/.eide/
+Code/.cmsis/
+Code/.claude/
+Code/.agents/
+
+# Keil MDK 用户级文件与生成文件
+Code/MDK-ARM/*.uvguix.*
+Code/MDK-ARM/*.uvoptx
+Code/MDK-ARM/DebugConfig/
+Code/MDK-ARM/RTE/
+Code/RTE_Components.h

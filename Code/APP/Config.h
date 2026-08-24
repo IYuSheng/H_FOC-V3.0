@@ -81,7 +81,6 @@
 
 // -------------------------- 常用常量及中间变量定义 --------------------------
 #define PI       3.14159265358979f
-#define M_PI		 PI
 #define _PI      PI
 #define _2PI     (2.0f * PI)
 #define _PI_2    (PI / 2.0f)

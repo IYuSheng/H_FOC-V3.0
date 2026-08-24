@@ -146,6 +146,13 @@ void MX_TIM15_Init(void)
   NVIC_EnableIRQ(TIM1_BRK_TIM15_IRQn);
 }
 
+void bsp_pwm_set_duty_three_phase(uint32_t duty_A, uint32_t duty_B, uint32_t duty_C)
+{
+  LL_TIM_OC_SetCompareCH1(TIM1, duty_A);
+  LL_TIM_OC_SetCompareCH2(TIM1, duty_B);
+  LL_TIM_OC_SetCompareCH3(TIM1, duty_C);
+}
+
 void bsp_pwm_set_duty_four_phase(uint32_t duty_A, uint32_t duty_A_, uint32_t duty_B, uint32_t duty_B_)
 {
   LL_TIM_OC_SetCompareCH1(TIM1, duty_A);

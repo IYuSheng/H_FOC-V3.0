@@ -38,19 +38,6 @@ static HAL_StatusTypeDef FDCAN_EnableNotifications(void)
         0);
 }
 
-static void FDCAN_CheckProtocolHealth(void)
-{
-    FDCAN_ProtocolStatusTypeDef protocol_status;
-
-    if (HAL_FDCAN_GetProtocolStatus(&hfdcan1, &protocol_status) != HAL_OK) {
-        return;
-    }
-
-    if (protocol_status.BusOff != 0U) {
-        fdcan_restart_requested = 1U;
-    }
-}
-
 /**
  * @brief 长度转DLC
  */

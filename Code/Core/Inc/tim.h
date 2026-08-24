@@ -41,6 +41,7 @@ void bsp_pwm_stop(void);
  * @param duty_B_
  */
 void bsp_pwm_set_duty_four_phase(uint32_t duty_A, uint32_t duty_A_, uint32_t duty_B, uint32_t duty_B_);
+void bsp_pwm_set_duty_three_phase(uint32_t duty_A, uint32_t duty_B, uint32_t duty_C);
 
 void MX_TIM15_Init(void);
 void MX_TIM3_Init(void);
