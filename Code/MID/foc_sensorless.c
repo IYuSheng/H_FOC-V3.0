@@ -1,4 +1,5 @@
 #include "foc_sensorless.h"
+#include "foc_filter.h"
 
 /* ---------------------非线性磁链观测器---------------------- */
 

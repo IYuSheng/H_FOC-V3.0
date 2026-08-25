@@ -1,17 +1,15 @@
 #include "foc_encoder_calibration.h"
 
+#include <stddef.h>
+#include <string.h>
+
 #include "Config.h"
 #include "adc.h"
 #include "cordic.h"
 #include "foc_conversion.h"
+#include "stm32g4xx_hal.h"
 #include "tim.h"
 #include "usart.h"
-
-#ifndef FOC_ENCODER_CALIBRATION_ENABLE
-#define FOC_ENCODER_CALIBRATION_ENABLE 0
-#endif
-
-#if FOC_ENCODER_CALIBRATION_ENABLE || FOC_ENCODER_CALIBRATION_USE_CONST_TABLE
 
 #if (FOC_ENCODER_CALIBRATION_SENSOR_PERIODS_PER_REV == 0U)
 #error "FOC_ENCODER_CALIBRATION_SENSOR_PERIODS_PER_REV must be greater than 0"
@@ -52,10 +50,6 @@
 #define ENC_CAL_ZERO_MIN_STEPS 20U
 /** 正向采集结束后的超调整步数，用于消除反向采样回差 */
 #define ENC_CAL_OVERSHOOT_STEPS 20U
-/** 校准完成后继续保持最后电角度的时间，便于观察电机最终位置 */
-#define ENC_CAL_HOLD_TICKS ((uint32_t)(2.00f / PWM_PERIOD_S))
-/** 运行中进度打印间隔，单位：扇区 */
-#define ENC_CAL_PROGRESS_STEP 20U
 /** Unique sectors in one repeated encoder magnetic period. */
 #define ENC_CAL_ACTIVE_SECTOR_COUNT FOC_ENCODER_CALIBRATION_ACTIVE_SECTOR_COUNT
 /** Unique table entries in one repeated encoder magnetic period. */
@@ -83,6 +77,32 @@
       (ENC_CAL_ACTIVE_SECTOR_COUNT * 4U - 1U)) /                               \
      (ENC_CAL_ACTIVE_SECTOR_COUNT * 4U))
 
+/** STM32G431CB 最后一个 2 KB FLASH 页，链接脚本已从固件区排除。 */
+#define ENC_CAL_FLASH_ADDRESS 0x0801F800UL
+#define ENC_CAL_FLASH_PAGE    63U
+#define ENC_CAL_FLASH_MAGIC   0x4543414CUL
+#define ENC_CAL_FLASH_VERSION 1U
+
+typedef struct
+{
+    uint32_t magic;
+    uint16_t version;
+    uint16_t sector_count;
+    uint16_t sensor_periods_per_rev;
+    int8_t direction;
+    uint8_t reverse;
+    int32_t linear_table[FOC_ENCODER_CALIBRATION_TABLE_SIZE];
+    uint32_t crc32;
+} enc_cal_flash_record_t;
+
+_Static_assert(sizeof(enc_cal_flash_record_t) <= FLASH_PAGE_SIZE,
+               "encoder calibration record does not fit in one FLASH page");
+
+static volatile uint8_t enc_cal_run_requested = 0U;
+static volatile uint8_t enc_cal_save_pending = 0U;
+static volatile uint8_t enc_cal_error_report_pending = 0U;
+static enc_cal_flash_record_t enc_cal_flash_write_buffer;
+
 foc_encoder_calibration_t g_encoder_calibration = {
     .latest_raw = FOC_ENCODER_CALIBRATION_INVALID_RAW,
     .latest_raw_valid = 0U,
@@ -92,33 +112,6 @@ foc_encoder_calibration_t g_encoder_calibration = {
     .raw_reverse = 0U,
     .first_bad_sector = ENC_CAL_ACTIVE_SECTOR_COUNT,
 };
-
-const int32_t
-    foc_encoder_calibration_const_table[FOC_ENCODER_CALIBRATION_TABLE_SIZE] = {
-        8,     90,    171,   252,   335,   416,   497,   579,   662,   744,
-        825,   907,   990,   1072,  1153,  1234,  1317,  1399,  1480,  1562,
-        1644,  1726,  1807,  1888,  1971,  2053,  2134,  2215,  2298,  2379,
-        2460,  2542,  2625,  2707,  2788,  2870,  2953,  3035,  3118,  3199,
-        3283,  3365,  3446,  3528,  3611,  3693,  3774,  3856,  3938,  4020,
-        4101,  4183,  4265,  4347,  4427,  4509,  4592,  4674,  4755,  4837,
-        4920,  5002,  5084,  5166,  5248,  5331,  5412,  5494,  5577,  5659,
-        5740,  5822,  5904,  5986,  6067,  6150,  6232,  6314,  6395,  6477,
-        6560,  6641,  6723,  6805,  6888,  6969,  7052,  7134,  7217,  7299,
-        7381,  7464,  7546,  7628,  7710,  7792,  7875,  7956,  8038,  8120,
-        8202,  8283,  8365,  8447,  8529,  8610,  8692,  8774,  8857,  8938,
-        9020,  9103,  9185,  9267,  9349,  9431,  9513,  9594,  9676,  9759,
-        9840,  9922,  10003, 10085, 10165, 10247, 10329, 10411, 10493, 10574,
-        10656, 10738, 10821, 10902, 10985, 11067, 11150, 11231, 11314, 11396,
-        11479, 11560, 11642, 11724, 11807, 11888, 11970, 12051, 12134, 12214,
-        12296, 12378, 12460, 12540, 12622, 12704, 12786, 12867, 12949, 13031,
-        13114, 13195, 13277, 13360, 13442, 13524, 13606, 13688, 13771, 13853,
-        13935, 14017, 14099, 14180, 14262, 14345, 14427, 14509, 14590, 14671,
-        14754, 14835, 14918, 15000, 15083, 15164, 15246, 15328, 15411, 15492,
-        15574, 15656, 15739, 15820, 15902, 15984, 16066, 16147, 16228, 16310,
-        16392};
-
-const int8_t foc_encoder_calibration_const_direction = 1;
-const uint8_t foc_encoder_calibration_const_reverse = 1U;
 
 static void enc_cal_openloop_voltage(float electrical_angle_rad,
                                      float voltage_d, float voltage_q);
@@ -148,8 +141,121 @@ static void enc_cal_set_error(foc_encoder_calibration_error_t error)
 {
     g_encoder_calibration.error = error;
     g_encoder_calibration.state = FOC_ENCODER_CALIBRATION_STATE_ERROR;
-    g_encoder_calibration.error_report_pending = 1U;
-    g_encoder_calibration.print_pending = 0U;
+    enc_cal_run_requested = 0U;
+    enc_cal_error_report_pending = 1U;
+    enc_cal_output_zero();
+}
+
+static uint32_t enc_cal_crc32(const void *data, uint32_t length)
+{
+    const uint8_t *bytes = (const uint8_t *)data;
+    uint32_t crc = 0xFFFFFFFFUL;
+
+    for (uint32_t i = 0U; i < length; i++) {
+        crc ^= bytes[i];
+        for (uint8_t bit = 0U; bit < 8U; bit++) {
+            crc = (crc >> 1U) ^
+                ((crc & 1U) != 0U ? 0xEDB88320UL : 0UL);
+        }
+    }
+
+    return crc ^ 0xFFFFFFFFUL;
+}
+
+static uint8_t enc_cal_flash_record_valid(
+    const enc_cal_flash_record_t *record)
+{
+    uint32_t expected_crc;
+    int32_t expected_span;
+
+    if ((record->magic != ENC_CAL_FLASH_MAGIC) ||
+        (record->version != ENC_CAL_FLASH_VERSION) ||
+        (record->sector_count != FOC_ENCODER_CALIBRATION_SECTOR_COUNT) ||
+        (record->sensor_periods_per_rev !=
+         FOC_ENCODER_CALIBRATION_SENSOR_PERIODS_PER_REV) ||
+        ((record->direction != 1) && (record->direction != -1)) ||
+        (record->reverse > 1U)) {
+        return 0U;
+    }
+
+    expected_crc = enc_cal_crc32(record,
+                                 offsetof(enc_cal_flash_record_t, crc32));
+    if (record->crc32 != expected_crc) {
+        return 0U;
+    }
+
+    expected_span = (int32_t)record->direction *
+        (int32_t)ENC_CAL_RAW_PERIOD_COUNTS;
+    if ((record->linear_table[ENC_CAL_ACTIVE_SECTOR_COUNT] -
+         record->linear_table[0]) != expected_span) {
+        return 0U;
+    }
+
+    return 1U;
+}
+
+static uint8_t enc_cal_save_to_flash(void)
+{
+    FLASH_EraseInitTypeDef erase = {0};
+    uint32_t page_error = 0U;
+    uint32_t offset;
+    HAL_StatusTypeDef status;
+
+    memset(&enc_cal_flash_write_buffer, 0,
+           sizeof(enc_cal_flash_write_buffer));
+    enc_cal_flash_write_buffer.magic = ENC_CAL_FLASH_MAGIC;
+    enc_cal_flash_write_buffer.version = ENC_CAL_FLASH_VERSION;
+    enc_cal_flash_write_buffer.sector_count =
+        FOC_ENCODER_CALIBRATION_SECTOR_COUNT;
+    enc_cal_flash_write_buffer.sensor_periods_per_rev =
+        FOC_ENCODER_CALIBRATION_SENSOR_PERIODS_PER_REV;
+    enc_cal_flash_write_buffer.direction =
+        g_encoder_calibration.raw_direction;
+    enc_cal_flash_write_buffer.reverse = g_encoder_calibration.raw_reverse;
+    memcpy(enc_cal_flash_write_buffer.linear_table,
+           g_encoder_calibration.linear_table,
+           sizeof(enc_cal_flash_write_buffer.linear_table));
+    enc_cal_flash_write_buffer.crc32 = enc_cal_crc32(
+        &enc_cal_flash_write_buffer,
+        offsetof(enc_cal_flash_record_t, crc32));
+
+    if (HAL_FLASH_Unlock() != HAL_OK) {
+        return 0U;
+    }
+
+    __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_ALL_ERRORS);
+    erase.TypeErase = FLASH_TYPEERASE_PAGES;
+    erase.Banks = FLASH_BANK_1;
+    erase.Page = ENC_CAL_FLASH_PAGE;
+    erase.NbPages = 1U;
+    status = HAL_FLASHEx_Erase(&erase, &page_error);
+
+    for (offset = 0U;
+         (status == HAL_OK) && (offset < sizeof(enc_cal_flash_write_buffer));
+         offset += 8U) {
+        uint64_t double_word = 0xFFFFFFFFFFFFFFFFULL;
+        uint32_t remaining =
+            (uint32_t)sizeof(enc_cal_flash_write_buffer) - offset;
+        uint32_t copy_size = (remaining < 8U) ? remaining : 8U;
+
+        memcpy(&double_word,
+               ((const uint8_t *)&enc_cal_flash_write_buffer) + offset,
+               copy_size);
+        status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD,
+                                   ENC_CAL_FLASH_ADDRESS + offset,
+                                   double_word);
+    }
+
+    (void)HAL_FLASH_Lock();
+
+    if ((status != HAL_OK) ||
+        (memcmp((const void *)ENC_CAL_FLASH_ADDRESS,
+                &enc_cal_flash_write_buffer,
+                sizeof(enc_cal_flash_write_buffer)) != 0)) {
+        return 0U;
+    }
+
+    return 1U;
 }
 
 /**
@@ -388,7 +494,6 @@ static uint8_t enc_cal_finalize_table(void)
         (g_encoder_calibration.measured_span_counts >
          (int32_t)((ENC_CAL_RAW_PERIOD_COUNTS * 11U) / 10U))) {
         enc_cal_set_error(FOC_ENCODER_CALIBRATION_ERROR_INTERVAL);
-        g_encoder_calibration.quality_report_pending = 1U;
         return 0U;
     }
 
@@ -419,10 +524,7 @@ static uint8_t enc_cal_finalize_table(void)
 
     g_encoder_calibration.error = FOC_ENCODER_CALIBRATION_ERROR_NONE;
     g_encoder_calibration.calibrated = 1U;
-    g_encoder_calibration.done_report_pending = 1U;
-    g_encoder_calibration.print_pending = 1U;
-    g_encoder_calibration.quality_report_pending = 1U;
-    g_encoder_calibration.print_index = 0U;
+    enc_cal_save_pending = 1U;
     return 1U;
 }
 
@@ -456,11 +558,100 @@ static void enc_cal_openloop_voltage(float electrical_angle_rad,
                                 spwm.duty_Bn);
 }
 
+void foc_encoder_calibration_init(void)
+{
+    const enc_cal_flash_record_t *record =
+        (const enc_cal_flash_record_t *)ENC_CAL_FLASH_ADDRESS;
+
+    foc_encoder_calibration_reset();
+    if (enc_cal_flash_record_valid(record) == 0U) {
+        return;
+    }
+
+    memcpy(g_encoder_calibration.linear_table, record->linear_table,
+           sizeof(g_encoder_calibration.linear_table));
+    g_encoder_calibration.raw_direction = record->direction;
+    g_encoder_calibration.raw_reverse = record->reverse;
+    g_encoder_calibration.calibrated = 1U;
+}
+
+uint8_t foc_encoder_calibration_start(void)
+{
+    if ((enc_cal_run_requested != 0U) || (enc_cal_save_pending != 0U)) {
+        return 0U;
+    }
+
+    foc_encoder_calibration_reset();
+    enc_cal_run_requested = 1U;
+    return 1U;
+}
+
+uint8_t foc_encoder_calibration_is_running(void)
+{
+    return enc_cal_run_requested;
+}
+
+void foc_encoder_calibration_process(void)
+{
+    foc_encoder_calibration_state_t final_state;
+    foc_encoder_calibration_error_t final_error;
+    uint32_t primask;
+
+    if (enc_cal_error_report_pending != 0U) {
+        uint8_t error = (uint8_t)g_encoder_calibration.error;
+        uint16_t sector = g_encoder_calibration.active_sector;
+        uint16_t raw = g_encoder_calibration.latest_raw;
+
+        enc_cal_error_report_pending = 0U;
+        debug_log("<ERR:calib encoder code=%u sector=%u raw=%u>", error,
+                  sector, raw);
+        return;
+    }
+
+    if (enc_cal_save_pending == 0U) {
+        return;
+    }
+
+    if (enc_cal_save_to_flash() != 0U) {
+        final_state = FOC_ENCODER_CALIBRATION_STATE_IDLE;
+        final_error = FOC_ENCODER_CALIBRATION_ERROR_NONE;
+    }
+    else {
+        final_state = FOC_ENCODER_CALIBRATION_STATE_ERROR;
+        final_error = FOC_ENCODER_CALIBRATION_ERROR_FLASH;
+    }
+
+    primask = __get_PRIMASK();
+    __disable_irq();
+    g_encoder_calibration.error = final_error;
+    g_encoder_calibration.state = final_state;
+    enc_cal_save_pending = 0U;
+    enc_cal_run_requested = 0U;
+    if (primask == 0U) {
+        __enable_irq();
+    }
+
+    if (final_error == FOC_ENCODER_CALIBRATION_ERROR_NONE) {
+        debug_log("<OK:calib encoder saved dir=%d reverse=%u "
+                  "nonlinearity=%ld counts %.3f%%>",
+                  g_encoder_calibration.raw_direction,
+                  g_encoder_calibration.raw_reverse,
+                  (long)g_encoder_calibration.max_nonlinearity_counts,
+                  g_encoder_calibration.max_nonlinearity_percent);
+    }
+    else {
+        debug_log("<ERR:calib encoder FLASH write failed>");
+    }
+}
+
 /**
  * @brief 复位编码器校准状态和 RAM 校准表
  */
 void foc_encoder_calibration_reset(void)
 {
+    enc_cal_run_requested = 0U;
+    enc_cal_save_pending = 0U;
+    enc_cal_error_report_pending = 0U;
     g_encoder_calibration.latest_raw = FOC_ENCODER_CALIBRATION_INVALID_RAW;
     g_encoder_calibration.latest_raw_valid = 0U;
     g_encoder_calibration.raw_update_count = 0U;
@@ -485,14 +676,10 @@ void foc_encoder_calibration_reset(void)
     g_encoder_calibration.prev_processed_raw = 0U;
     g_encoder_calibration.sample_reference = 0;
     g_encoder_calibration.sample_accum = 0;
-    g_encoder_calibration.progress_sector = 0U;
-    g_encoder_calibration.start_report_pending = 0U;
-    g_encoder_calibration.progress_report_pending = 0U;
-    g_encoder_calibration.done_report_pending = 0U;
-    g_encoder_calibration.error_report_pending = 0U;
-    g_encoder_calibration.quality_report_pending = 0U;
-    g_encoder_calibration.print_pending = 0U;
-    g_encoder_calibration.print_index = 0U;
+    memset(g_encoder_calibration.raw_table, 0,
+           sizeof(g_encoder_calibration.raw_table));
+    memset(g_encoder_calibration.linear_table, 0,
+           sizeof(g_encoder_calibration.linear_table));
 }
 
 /**
@@ -541,14 +728,6 @@ void foc_encoder_calibration_open_loop_calibrate(void)
             g_encoder_calibration.prev_processed_raw = 0U;
             g_encoder_calibration.sample_reference = 0;
             g_encoder_calibration.sample_accum = 0;
-            g_encoder_calibration.progress_sector = 0U;
-            g_encoder_calibration.start_report_pending = 1U;
-            g_encoder_calibration.progress_report_pending = 0U;
-            g_encoder_calibration.done_report_pending = 0U;
-            g_encoder_calibration.error_report_pending = 0U;
-            g_encoder_calibration.quality_report_pending = 0U;
-            g_encoder_calibration.print_pending = 0U;
-            g_encoder_calibration.print_index = 0U;
             g_encoder_calibration.state =
                 FOC_ENCODER_CALIBRATION_STATE_DIR_CHECK_ALIGN;
             break;
@@ -716,9 +895,6 @@ void foc_encoder_calibration_open_loop_calibrate(void)
 
                 if (g_encoder_calibration.sample_count >=
                     ENC_CAL_SAMPLES_PER_POINT) {
-                    g_encoder_calibration.progress_sector =
-                        g_encoder_calibration.active_sector;
-                    g_encoder_calibration.progress_report_pending = 1U;
                     g_encoder_calibration.active_sector++;
                     g_encoder_calibration.phase_tick = 0U;
                     g_encoder_calibration.state =
@@ -794,13 +970,11 @@ void foc_encoder_calibration_open_loop_calibrate(void)
                     g_encoder_calibration
                         .raw_table[g_encoder_calibration.active_sector] =
                         enc_cal_normalize_raw_int(result);
-                    g_encoder_calibration.progress_sector =
-                        g_encoder_calibration.active_sector;
-                    g_encoder_calibration.progress_report_pending = 1U;
                     g_encoder_calibration.phase_tick = 0U;
 
                     if (g_encoder_calibration.active_sector == 0U) {
                         if (enc_cal_finalize_table() != 0U) {
+                            enc_cal_output_zero();
                             g_encoder_calibration.state =
                                 FOC_ENCODER_CALIBRATION_STATE_DONE;
                         }
@@ -815,12 +989,7 @@ void foc_encoder_calibration_open_loop_calibrate(void)
             break;
 
         case FOC_ENCODER_CALIBRATION_STATE_DONE:
-            enc_cal_openloop_voltage(g_encoder_calibration.command_angle_rad,
-                                     ENC_CAL_D_AXIS_VOLTAGE,
-                                     ENC_CAL_Q_AXIS_VOLTAGE);
-            if (++g_encoder_calibration.phase_tick >= ENC_CAL_HOLD_TICKS) {
-                enc_cal_output_zero();
-            }
+            enc_cal_output_zero();
             break;
 
         case FOC_ENCODER_CALIBRATION_STATE_ERROR:
@@ -853,18 +1022,10 @@ uint8_t foc_encoder_calibration_linearize(uint16_t raw_angle,
     float fraction;
     float sector_position;
 
-#if FOC_ENCODER_CALIBRATION_USE_CONST_TABLE
-    table = foc_encoder_calibration_const_table;
-    direction = foc_encoder_calibration_const_direction;
-    table_ready = 1U;
-    input = (int32_t)enc_cal_process_raw_with_reverse(
-        raw_angle, foc_encoder_calibration_const_reverse);
-#else
     table = g_encoder_calibration.linear_table;
     direction = g_encoder_calibration.raw_direction;
     table_ready = g_encoder_calibration.calibrated;
     input = (int32_t)enc_cal_get_processed_raw(raw_angle);
-#endif
 
     if ((table_ready == 0U) ||
         (raw_angle == FOC_ENCODER_CALIBRATION_INVALID_RAW) ||
@@ -930,124 +1091,3 @@ uint8_t foc_encoder_calibration_linearize(uint16_t raw_angle,
 
     return 1U;
 }
-/**
- * @brief 打印编码器校准调试信息
- * @note 每次调用最多打印一行，适合放在 1kHz 调试任务中分批输出。
- */
-void foc_encoder_calibration_debug_log(void)
-{
-    if (g_encoder_calibration.start_report_pending != 0U) {
-        g_encoder_calibration.start_report_pending = 0U;
-        debug_log("[ENC_CAL] start: sectors=%u sensor_periods=%u pole_pairs=%u "
-                  "capture_step_rad=%.3f inc_rad=%.3f settle_ticks=%lu "
-                  "total_elec_rad=%.1f "
-                  "d_voltage=%.3f",
-                  ENC_CAL_ACTIVE_SECTOR_COUNT,
-                  FOC_ENCODER_CALIBRATION_SENSOR_PERIODS_PER_REV,
-                  MOTOR_POLE_PAIRS, ENC_CAL_ELEC_STEP_RAD, ENC_CAL_ELEC_INC_RAD,
-                  (unsigned long)ENC_CAL_SETTLE_TICKS,
-                  ENC_CAL_ELEC_STEP_RAD * (float)ENC_CAL_ACTIVE_SECTOR_COUNT,
-                  ENC_CAL_D_AXIS_VOLTAGE);
-        return;
-    }
-
-    if (g_encoder_calibration.progress_report_pending != 0U) {
-        g_encoder_calibration.progress_report_pending = 0U;
-        debug_log("%03u, %u", g_encoder_calibration.progress_sector,
-                  g_encoder_calibration
-                      .raw_table[g_encoder_calibration.progress_sector]);
-        return;
-    }
-
-    if (g_encoder_calibration.error_report_pending != 0U) {
-        g_encoder_calibration.error_report_pending = 0U;
-        debug_log("[ENC_CAL] ERROR: code=%u sector=%u raw=%u",
-                  (uint8_t)g_encoder_calibration.error,
-                  g_encoder_calibration.active_sector,
-                  g_encoder_calibration.latest_raw);
-        return;
-    }
-
-    if (g_encoder_calibration.done_report_pending != 0U) {
-        g_encoder_calibration.done_report_pending = 0U;
-        debug_log("[ENC_CAL] done: dir=%d reverse=%u",
-                  g_encoder_calibration.raw_direction,
-                  g_encoder_calibration.raw_reverse);
-        return;
-    }
-
-    if (g_encoder_calibration.print_pending != 0U) {
-        if (g_encoder_calibration.print_index < ENC_CAL_ACTIVE_TABLE_SIZE) {
-            uint16_t index = g_encoder_calibration.print_index;
-            debug_log("%d,", (int)g_encoder_calibration.linear_table[index]);
-            g_encoder_calibration.print_index++;
-            return;
-        }
-
-        g_encoder_calibration.print_pending = 0U;
-        return;
-    }
-
-    if (g_encoder_calibration.quality_report_pending != 0U) {
-        g_encoder_calibration.quality_report_pending = 0U;
-        debug_log("[ENC_CAL] quality: bad=%u first=%u span=%d max_delta=%d "
-                  "ecc=%.3f%% max_err=%d",
-                  g_encoder_calibration.bad_interval_count,
-                  g_encoder_calibration.first_bad_sector,
-                  (int)g_encoder_calibration.measured_span_counts,
-                  (int)g_encoder_calibration.max_interval_delta,
-                  g_encoder_calibration.max_nonlinearity_percent,
-                  (int)g_encoder_calibration.max_nonlinearity_counts);
-        return;
-    }
-}
-
-#else
-
-/**
- * @brief 校准功能关闭时的空复位接口
- */
-void foc_encoder_calibration_reset(void)
-{
-}
-
-/**
- * @brief 校准功能关闭时的空原始角度写入接口
- * @param raw_angle MT6816 原始角度
- */
-void foc_encoder_calibration_set_raw(uint16_t raw_angle)
-{
-    (void)raw_angle;
-}
-
-/**
- * @brief 校准功能关闭时的空校准接口
- */
-void foc_encoder_calibration_open_loop_calibrate(void)
-{
-}
-
-/**
- * @brief 校准功能关闭时的线性化接口
- * @param raw_angle MT6816 原始角度
- * @param electrical_angle 输出电角度指针
- * @param mechanical_angle 输出机械角度指针
- * @return 固定返回 0，表示当前没有可用校准表
- */
-uint8_t foc_encoder_calibration_linearize(uint16_t raw_angle,
-                                          float *electrical_angle,
-                                          float *mechanical_angle)
-{
-    (void)raw_angle;
-    (void)electrical_angle;
-    (void)mechanical_angle;
-    return 0U;
-}
-/**
- * @brief 校准功能关闭时的空调试打印接口
- */
-void foc_encoder_calibration_debug_log(void)
-{
-}
-
-#endif

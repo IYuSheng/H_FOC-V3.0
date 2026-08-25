@@ -35,7 +35,6 @@ extern "C" {
  */
 typedef struct
 {
-    FOC_STATUS foc_state;        // 当前状态
     FOC_FAULT  fault_type;       // 当前故障类型
     float temp_max;              // 最高温度阈值（℃）
     float vbus_max;              // 母线最高电压阈值（V）

@@ -1,9 +1,6 @@
 #ifndef __CONFIG_H
 #define __CONFIG_H
 
-// --------------------------- 模式选项 --------------------------
-#define DEBUG_MODE 1 // 打开仿真波形打印
-
 // -------------------------- 电源与硬件限制 --------------------------
 #define VOLTAGE_LIMIT           20.0f // 直流母线电压限制 (V)
 #define CURRENT_LIMIT           2.5f  // 最大相电流限制 (A)
@@ -17,6 +14,9 @@
 #define MOTOR_INDUCTANCE_Ld MOTOR_INDUCTANCE
 #define MOTOR_INDUCTANCE_Lq MOTOR_INDUCTANCE
 #define MOTOR_FLUX_LINKAGE  0.003f // 磁链 (Wb)
+#define MOTOR_KA 0.000791111f // J/Kt (A*s^2/rad)
+#define MOTOR_KV 0.0f         // B/Kt (A*s/rad)
+#define MOTOR_TC 0.0f         // 库仑摩擦等效电流 (A)
 
 // -------------------------- FOC控制参数 --------------------------
 #define PWM_FREQ      30000.0f        // PWM频率 (Hz)，需与定时器配置匹配
@@ -107,13 +107,5 @@ typedef enum {
     FAULT_ENCODER_ANGLE,    // 编码器角度超限制
     FAULT_I_SAMPLING_ERROR  // 电流采样错误
 } FOC_FAULT;
-
-// -------------------------- FOC状态定义 --------------------------
-typedef enum {
-    FOC_STATE_INIT,    // 初始化
-    FOC_STATE_RUNNING, // 运行中
-    FOC_STATE_FAULT,   // 故障
-    FOC_STATE_STOP     // 停止
-} FOC_STATUS;
 
 #endif /* __CONFIG_H */

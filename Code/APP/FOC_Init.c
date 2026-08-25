@@ -18,6 +18,9 @@ void FOC_Init(void)
   MX_CORDIC_Init();
   MX_TIM3_Init();
   MX_TIM4_Init();
+  foc_runtime_init();
+  foc_encoder_calibration_init();
+  foc_mechanical_param_init();
 }
 
 void foc_start(void)

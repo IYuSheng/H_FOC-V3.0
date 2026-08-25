@@ -3,10 +3,6 @@
 
 #include <stdint.h>
 
-#ifndef FOC_ENCODER_CALIBRATION_ENABLE
-#define FOC_ENCODER_CALIBRATION_ENABLE 0
-#endif
-
 /** 编码器校准扇区数量，200 个整步对应一个机械角周期 */
 #define FOC_ENCODER_CALIBRATION_SECTOR_COUNT 200U
 /** Encoder magnetic periods per mechanical revolution. */
@@ -30,18 +26,6 @@
 #define FOC_ENCODER_CALIBRATION_INVALID_RAW  0xFFFFU
 
 /**
- * @brief 是否使用固化的编码器校准表
- * @note 置 1 后，foc_encoder_calibration_linearize() 将使用 foc_encoder_calibration_const_table。
- */
-#ifndef FOC_ENCODER_CALIBRATION_USE_CONST_TABLE
-#define FOC_ENCODER_CALIBRATION_USE_CONST_TABLE 1
-#endif
-
-extern const int32_t foc_encoder_calibration_const_table[FOC_ENCODER_CALIBRATION_TABLE_SIZE];
-extern const int8_t foc_encoder_calibration_const_direction;
-extern const uint8_t foc_encoder_calibration_const_reverse;
-
-/**
  * @brief 编码器开环校准状态机状态
  */
 typedef enum
@@ -57,7 +41,7 @@ typedef enum
     FOC_ENCODER_CALIBRATION_STATE_BACKTRACK_MOVE, /**< 反向回到最后采样点 */
     FOC_ENCODER_CALIBRATION_STATE_BACKWARD_MOVE, /**< 反向推进到采样点 */
     FOC_ENCODER_CALIBRATION_STATE_BACKWARD_SETTLE_SAMPLE, /**< 反向稳定并多次采样 */
-    FOC_ENCODER_CALIBRATION_STATE_DONE,      /**< 校准完成，等待打印结果 */
+    FOC_ENCODER_CALIBRATION_STATE_DONE,      /**< 校准完成，等待写入 FLASH */
     FOC_ENCODER_CALIBRATION_STATE_ERROR      /**< 校准失败 */
 } foc_encoder_calibration_state_t;
 
@@ -69,7 +53,8 @@ typedef enum
     FOC_ENCODER_CALIBRATION_ERROR_NONE = 0,  /**< 无错误 */
     FOC_ENCODER_CALIBRATION_ERROR_RAW_INVALID, /**< 编码器原始值读取失败 */
     FOC_ENCODER_CALIBRATION_ERROR_DIRECTION, /**< 无法判断编码器计数方向 */
-    FOC_ENCODER_CALIBRATION_ERROR_INTERVAL   /**< 相邻校准点间隔超出允许范围 */
+    FOC_ENCODER_CALIBRATION_ERROR_INTERVAL,  /**< 相邻校准点间隔超出允许范围 */
+    FOC_ENCODER_CALIBRATION_ERROR_FLASH      /**< FLASH 擦写或校验失败 */
 } foc_encoder_calibration_error_t;
 
 /**
@@ -106,18 +91,30 @@ typedef struct
     uint16_t prev_processed_raw; /**< 找零时上一次处理后的原始值 */
     int32_t sample_reference; /**< 当前点环形平均参考值 */
     int32_t sample_accum;     /**< 当前点展开后的采样累加值 */
-    uint16_t progress_sector; /**< 当前已经打印到的校准进度扇区 */
-
-    uint8_t start_report_pending; /**< 等待打印开始信息 */
-    uint8_t progress_report_pending; /**< 等待打印运行中校准进度 */
-    uint8_t done_report_pending;  /**< 等待打印完成信息 */
-    uint8_t error_report_pending; /**< 等待打印错误信息 */
-    uint8_t quality_report_pending; /**< 等待打印校准质量统计 */
-    uint8_t print_pending;        /**< 等待逐点打印校准表 */
-    uint16_t print_index;         /**< 当前打印的校准表索引 */
 } foc_encoder_calibration_t;
 
 extern foc_encoder_calibration_t g_encoder_calibration;
+
+/**
+ * @brief 初始化校准模块并从 FLASH 加载有效校准表
+ */
+void foc_encoder_calibration_init(void);
+
+/**
+ * @brief 请求启动一次编码器校准
+ * @return 1 表示已接受，0 表示校准或 FLASH 保存正在进行
+ */
+uint8_t foc_encoder_calibration_start(void);
+
+/**
+ * @brief 查询编码器校准状态机是否正在运行
+ */
+uint8_t foc_encoder_calibration_is_running(void);
+
+/**
+ * @brief 主循环后台任务，负责将完成的校准结果写入 FLASH
+ */
+void foc_encoder_calibration_process(void);
 
 /**
  * @brief 复位编码器校准状态和 RAM 校准表
@@ -147,11 +144,5 @@ void foc_encoder_calibration_open_loop_calibrate(void);
 uint8_t foc_encoder_calibration_linearize(uint16_t raw_angle,
                                           float *electrical_angle,
                                           float *mechanical_angle);
-
-/**
- * @brief 打印编码器校准调试信息
- * @note 校准完成后会逐次打印 200 个校准点，避免在中断中一次性阻塞输出。
- */
-void foc_encoder_calibration_debug_log(void);
 
 #endif

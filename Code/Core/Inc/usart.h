@@ -38,6 +38,8 @@ extern "C" {
 
 void MX_USART3_UART_Init(void);
 void debug_log(const char *format, ...);
+void bsp_uart_process_rx(void);
+void bsp_uart_wait_tx_complete(void);
 
 /* USER CODE BEGIN Prototypes */
 

@@ -35,6 +35,7 @@ add_link_options(
     -mfloat-abi=hard
     -T${CMAKE_SOURCE_DIR}/Code/STM32G431CB_FLASH.ld
     -Wl,--gc-sections
+    -Wl,-u,_printf_float
     -specs=nosys.specs
     -specs=nano.specs
     -Wl,--start-group

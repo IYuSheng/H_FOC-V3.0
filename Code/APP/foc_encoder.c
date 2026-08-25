@@ -282,17 +282,14 @@ float encoder_read_mechanical_angle(void)
   */
 float encoder_read_electrical_angle(void)
 {
-#if FOC_ENCODER_CALIBRATION_USE_CONST_TABLE
     float calibrated_electrical_angle;
     float calibrated_mechanical_angle;
-#endif
 
     encoder_data.raw_angle = encoder_read_raw_angle();
     if (encoder_data.raw_angle == 0xFFFF) {
         return -1.0f;
     }
 
-#if FOC_ENCODER_CALIBRATION_USE_CONST_TABLE
     if (foc_encoder_calibration_linearize(encoder_data.raw_angle,
                                           &calibrated_electrical_angle,
                                           &calibrated_mechanical_angle) != 0U)
@@ -302,7 +299,6 @@ float encoder_read_electrical_angle(void)
             angle_normalize(calibrated_electrical_angle + _PI_2);
         return encoder_data.electrical_angle;
     }
-#endif
 
     encoder_data.angle_raw_scaled = (encoder_data.raw_angle * ENCODER_ANGLE_SCALE);
     encoder_data.electrical_angle =

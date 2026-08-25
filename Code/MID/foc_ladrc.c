@@ -1,6 +1,24 @@
 #include "foc_ladrc.h"
 
+#include <math.h>
+
 #include "Config.h"
+#include "foc_runtime.h"
+
+/**
+ * @brief 获取由 Ka=J/Kt 确定的位置环输入增益
+ * @return 电流到机械角加速度的增益，单位 rad/s^2/A
+ */
+static float position_ladrc_get_b0(void)
+{
+    const foc_motor_config_t *motor = foc_runtime_get_motor_config();
+    float b0 = 1.0f / motor->ka;
+
+    if ((!isfinite(b0)) || (b0 <= 0.0f)) {
+        return POSITION_LADRC_B0;
+    }
+    return b0;
+}
 
 static inline float position_ladrc_limit(float value, float min, float max)
 {
@@ -36,10 +54,11 @@ float position_ladrc_update(PositionLadrc_t *controller, float target_position,
 
     const float wo = POSITION_LESO_BANDWIDTH;
     const float wo2 = wo * wo;
+    const float b0 = position_ladrc_get_b0();
     const float observer_error = controller->z1 - position_feedback;
     const float z1_dot = controller->z2 - 3.0f * wo * observer_error;
     const float z2_dot = controller->z3 - 3.0f * wo2 * observer_error +
-        POSITION_LADRC_B0 * controller->output;
+        b0 * controller->output;
     const float z3_dot = -(wo2 * wo) * observer_error;
 
     controller->z1 += POSITION_LOOP_DT * z1_dot;
@@ -52,7 +71,7 @@ float position_ladrc_update(PositionLadrc_t *controller, float target_position,
         (wc * wc) * position_error +
         2.0f * wc * (target_velocity - controller->z2);
     const float output_unsaturated =
-        (desired_acceleration - controller->z3) / POSITION_LADRC_B0;
+        (desired_acceleration - controller->z3) / b0;
 
     controller->output = position_ladrc_limit(
         output_unsaturated, POSITION_LADRC_OUT_MIN, POSITION_LADRC_OUT_MAX);

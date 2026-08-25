@@ -1,7 +1,5 @@
 ﻿#include "foc_communication.h"
 #include <string.h>
-
-uart_parsed_data_t* data;
 uint8_t g_local_node_id = JOINT_ID;
 joint_status_t remote_joint_status[JOINT_ID_MAX];
 canfd_joint_cmd_t g_canfd_joint_cmd = {0};
@@ -71,29 +69,4 @@ void CAN_Process(void)
 {
     FDCAN_ProcessRxQueue();
     FDCAN_Service();
-}
-
-void foc_control_set(void)
-{
-    data = get_parsed_data();
-
-    if (data->target_position_valid) {
-        g_canfd_joint_cmd.enabled = 0U;
-        foc_ctrl.target_position = data->target_position;
-        data->target_position_valid = 0;
-    }
-    if (data->target_speed_valid) {
-        g_canfd_joint_cmd.enabled = 0U;
-        foc_ctrl.target_speed = data->target_speed;
-        data->target_speed_valid = 0;
-    }
-    if (data->current_q_valid) {
-        g_canfd_joint_cmd.enabled = 0U;
-        data->current_q_valid = 0;
-    }
-    if (data->target_q_valid) {
-        g_canfd_joint_cmd.enabled = 0U;
-        foc_ctrl.target_q = data->target_q;
-        data->target_q_valid = 0;
-    }
 }

@@ -1,44 +1,46 @@
 #include "foc_control.h"
 
-extern pi_t id_pid;
-extern pi_t iq_pid;
+#include <math.h>
 
-#if FOC_SHAPER_ENABLE &&                                                       \
-    (FOC_TRAJECTORY_PLANNER_TYPE == FOC_TRAJECTORY_PLANNER_S_CURVE)
-SCurve_Planner_t g_pos_planner;
-#elif FOC_SHAPER_ENABLE &&                                                     \
-    (FOC_TRAJECTORY_PLANNER_TYPE == FOC_TRAJECTORY_PLANNER_TRAPEZOID)
-TrapezoidPlanner_t g_pos_planner;
-#endif
-
+static SCurve_Planner_t position_planner;
 static PositionLadrc_t position_ladrc;
+static uint32_t step_tick;
+static uint8_t step_target_b;
+static uint8_t position_plan_valid;
+static float position_last_target;
 
-static inline void foc_open_loop_control(float target_speed, float target_outq);
+/**
+ * @brief 使用当前电机参数初始化电流环 PI
+ */
+static void foc_current_pi_init_from_motor(void);
+
+/**
+ * @brief 在 IDLE 模式输出四相中点占空比
+ */
+static inline void foc_output_idle(void);
+
+/**
+ * @brief FOC电流闭环控制函数
+ * @param target_d d 轴目标电流，单位 A
+ * @param target_q q 轴目标电流，单位 A
+ */
 static inline void foc_current_control(float target_d, float target_q);
-static inline void foc_speed_control(float target_speed);
+
+/**
+ * @brief FOC位置闭环控制函数
+ * @param target_position 目标机械位置，单位 rad
+ */
 static inline void foc_position_control(float target_position);
 
+/**
+ * @brief 按串口开关输出连续五通道波形
+ */
 void foc_debug(void)
 {
-#if FOC_ENCODER_CALIBRATION_ENABLE && !FOC_ENCODER_CALIBRATION_USE_CONST_TABLE
-    foc_encoder_calibration_debug_log();
-#else
-
-#if FOC_DEBUG_POSITION_TOGGLE_ENABLE && FOC_POSITION_CONTROL_ENABLE
-    static uint16_t position_toggle_tick = 0U;
-    static uint8_t position_toggle_state = 0U;
-
-    if (++position_toggle_tick >= FOC_DEBUG_POSITION_TOGGLE_TICKS) {
-        position_toggle_tick = 0U;
-        position_toggle_state ^= 1U;
-        foc_ctrl.target_position = (position_toggle_state != 0U)
-            ? FOC_DEBUG_POSITION_TARGET_B
-            : FOC_DEBUG_POSITION_TARGET_A;
+    if ((foc_runtime_debug_is_enabled() == 0U) ||
+        (foc_encoder_calibration_is_running() != 0U)) {
+        return;
     }
-#endif
-#if FOC_MECH_PARAM_IDENTIFY_ENABLE
-    foc_mechanical_param_debug_log();
-#endif
 
     // debug_log("%.4f, %.4f, %.4f, %.4f, %.4f", foc_ctrl.target_q,
     // foc_ctrl.abc_dq.current_q, foc_ctrl.shaped_t_p,
@@ -57,104 +59,194 @@ void foc_debug(void)
 
     // 电磁转矩计算
     // foc_ctrl.Te = 1.5f * MOTOR_POLE_PAIRS * (MOTOR_FLUX_LINKAGE *
-    // foc_ctrl.abc_dq.current_q); debug_log("%.4f", foc_ctrl.Te)
+    // foc_ctrl.abc_dq.current_q);
+    // debug_log("%.4f", foc_ctrl.Te);
 
-     debug_log("%.4f, %.4f, %.4f, %.4f, %.4f", foc_ctrl.target_q,
-               foc_ctrl.abc_dq.current_q, encoder_data.mechanical_position,
-               encoder_data.mechanical_speed, foc_ctrl.shaped_t_p);
-
-#if FOC_TEST_ENABLE
-    // q轴正弦波扫频输出
-    static float sine_angle = 0.0f;
-    const float amplitude = 0.1f;
-
-    // 计算当前正弦值并设置到q轴输出
-    foc_ctrl.target_q = amplitude * sinf(sine_angle);
-
-    // 扫频测试相位每次增加 pi/180 rad。
-    sine_angle += 0.0174533f;
-
-    // 限制角度在0-2π范围内
-    if (sine_angle >= 6.283185f) {
-        sine_angle -= 6.283185f;
-    }
-#endif
-#endif
+    debug_log("%.4f, %.4f, %.4f, %.4f, %.4f", foc_ctrl.target_q,
+              foc_ctrl.abc_dq.current_q, encoder_data.mechanical_position,
+              encoder_data.mechanical_speed, foc_ctrl.shaped_t_p);
 }
 
 /**
- * @brief FOC初始化，锁定电机至零位
+ * @brief 初始化 FOC 控制器并校准电流采样零偏
  */
 void foc_start_init(void)
 {
-    foc_ctrl.target_speed = 1.570796327f; // rad/s
-    foc_ctrl.out_q = 0.0f;              // 设置q轴输出电压(开环用)
-    foc_ctrl.out_d = 0.0f;              // 设置d轴输出电压(开环用)
-    foc_ctrl.target_q = 0.5f;           // 设置目标Q轴电流
-    foc_ctrl.target_d = 0.0f;           // 设置目标D轴电流
-    // 位置闭环上电先保持当前位置，等待外部下发新目标
+    foc_ctrl.target_speed = 0.0f;
+    foc_ctrl.out_q = 0.0f;
+    foc_ctrl.out_d = 0.0f;
+    foc_ctrl.target_q = 0.0f;
+    foc_ctrl.target_d = 0.0f;
     foc_ctrl.target_position = encoder_data.mechanical_position;
-    // 初始化电流环PI参数
-    foc_current_pi_init(I_D_P_GAIN, I_Q_P_GAIN, I_I_GAIN, I_I_LIMIT);
-    // 初始化速度环PI参数（仅在速度模式启用时使用）
-    foc_speed_pi_init(SPEED_P_GAIN, SPEED_I_GAIN, SPEED_I_LIMIT);
-    foc_position_pi_init(POSITION_P_GAIN, POSITION_I_GAIN, POSITION_D_GAIN,
-                         POSITION_I_LIMIT);
-    // LESO从当前位置开始观测，避免初始位置误差导致启动冲击
-    position_ladrc_reset(&position_ladrc, encoder_data.mechanical_position);
+    foc_ctrl.shaped_t_p = encoder_data.mechanical_position;
     foc_ctrl.shaped_t_v = 0.0f;
     foc_ctrl.shaped_t_a = 0.0f;
 
-    get_foc_bus_voltage(); // 获取电机母线电压
-    debug_log("Vbus: %.2f V", foc_voltage_data.vbus);
-    // 电流偏置校准
-    adc1_current_offset_calibrate();
-
-#if FOC_MECH_PARAM_IDENTIFY_ENABLE
-    foc_mechanical_param_start();
-#endif
-
-#if FOC_SHAPER_ENABLE
-// 轨迹规划器，具体类型由 FOC_TRAJECTORY_PLANNER_TYPE 选择
-#if (FOC_TRAJECTORY_PLANNER_TYPE == FOC_TRAJECTORY_PLANNER_S_CURVE)
-    // S曲线轨迹规划 (最大速度 最大加速度 最大加加速度 Ts)
-    s_curve_planner_init(&g_pos_planner, FOC_S_CURVE_MAX_VELOCITY,
+    foc_current_pi_init_from_motor();
+    position_ladrc_reset(&position_ladrc, encoder_data.mechanical_position);
+    s_curve_planner_init(&position_planner, FOC_S_CURVE_MAX_VELOCITY,
                          FOC_S_CURVE_MAX_ACCELERATION, FOC_S_CURVE_MAX_JERK,
                          POSITION_LOOP_DT);
-#if FOC_EI_SHAPER_ENABLE
-    ei_shaper_init(FOC_EI_SHAPER_FREQ_HZ, FOC_EI_SHAPER_V, POSITION_LOOP_DT);
-#endif
-#elif (FOC_TRAJECTORY_PLANNER_TYPE == FOC_TRAJECTORY_PLANNER_TRAPEZOID)
-    // 梯形轨迹规划 (全局最大速度 Ts)，每条指令最大速度在 update 中传入
-    trapezoid_planner_init(&g_pos_planner, FOC_TRAPEZOID_MAX_VELOCITY,
-                           POSITION_LOOP_DT);
-    trapezoid_planner_set_tolerance(&g_pos_planner, FOC_TRAPEZOID_TOLERANCE);
-#endif
-#endif
 
-#if FLUX_OBSERVER_ENABLE
-    // 初始化磁链观测器
-    flux_observer_init(&g_flux_obs);
-#endif
+    get_foc_bus_voltage();
+    debug_log("Vbus: %.2f V", foc_voltage_data.vbus);
+    adc1_current_offset_calibrate();
 }
 
 /**
- * @brief FOC外环控制主函数 1kHZ运行
+ * @brief 按指定控制类型进入 RUNNING 模式
+ * @param profile 电流运行或位置阶跃
+ * @return 1 表示启动成功，0 表示状态不允许
+ */
+uint8_t foc_control_start(foc_run_profile_t profile)
+{
+    const foc_runtime_config_t *config = foc_runtime_get_config();
+
+    if ((foc_runtime_is_ready() == 0U) ||
+        (foc_runtime_get_mode() != FOC_MODE_IDLE) ||
+        (foc_encoder_calibration_is_running() != 0U) ||
+        foc_mechanical_param_is_active()) {
+        return 0U;
+    }
+
+    foc_current_pi_init_from_motor();
+    position_ladrc_reset(&position_ladrc, encoder_data.mechanical_position);
+    s_curve_planner_init(&position_planner, FOC_S_CURVE_MAX_VELOCITY,
+                         FOC_S_CURVE_MAX_ACCELERATION, FOC_S_CURVE_MAX_JERK,
+                         POSITION_LOOP_DT);
+
+    foc_ctrl.target_d = config->target_id;
+    foc_ctrl.target_q = (profile == FOC_RUN_CURRENT) ? config->target_iq : 0.0f;
+    foc_ctrl.target_position = (profile == FOC_RUN_POSITION_STEP)
+        ? config->step_position_a
+        : encoder_data.mechanical_position;
+    foc_ctrl.shaped_t_p = encoder_data.mechanical_position;
+    foc_ctrl.shaped_t_v = 0.0f;
+    foc_ctrl.shaped_t_a = 0.0f;
+    foc_ctrl.out_d = 0.0f;
+    foc_ctrl.out_q = 0.0f;
+
+    step_tick = 0U;
+    step_target_b = 0U;
+    position_plan_valid = 0U;
+
+    return foc_runtime_start(profile);
+}
+
+/**
+ * @brief 启动机械参数辨识维护任务
+ * @return 1 表示已启动，0 表示状态或硬件条件不允许
+ */
+uint8_t foc_control_start_mechanical_identification(void)
+{
+    if ((foc_runtime_is_ready() == 0U) ||
+        (foc_runtime_get_mode() != FOC_MODE_IDLE) ||
+        (foc_encoder_calibration_is_running() != 0U) ||
+        foc_mechanical_param_is_active()) {
+        return 0U;
+    }
+
+    foc_current_pi_init_from_motor();
+    foc_ctrl.target_d = 0.0f;
+    foc_ctrl.target_q = 0.0f;
+    foc_ctrl.out_d = 0.0f;
+    foc_ctrl.out_q = 0.0f;
+    foc_mechanical_param_start();
+    return 1U;
+}
+
+/**
+ * @brief 在主循环处理机械辨识结果并保存 Ka/Kv/Tc 到 FLASH
+ */
+void foc_control_background_process(void)
+{
+    const mech_identify_result_t *result;
+    float ka;
+    float kv;
+    float tc;
+    uint8_t result_valid;
+
+    if (g_mech_identify.state == MECH_IDENTIFY_FAILED) {
+        foc_mechanical_param_stop();
+        foc_output_idle();
+        debug_log("<ERR:identify mech failed>");
+        return;
+    }
+    if (g_mech_identify.state != MECH_IDENTIFY_COMPLETE) {
+        return;
+    }
+
+    result = foc_mechanical_param_get_result();
+    ka = result->Ka;
+    kv = result->Kv;
+    tc = fabsf(result->Tc);
+    result_valid =
+        ((result->valid != false) && isfinite(ka) && isfinite(kv) &&
+         isfinite(tc) && (ka > 0.0f) && (ka <= 100.0f) && (kv >= 0.0f) &&
+         (kv <= 100.0f) && (tc >= 0.0f) && (tc <= 100.0f))
+        ? 1U
+        : 0U;
+    foc_mechanical_param_stop();
+    foc_output_idle();
+
+    if (result_valid == 0U) {
+        debug_log("<ERR:identify mech result invalid>");
+    }
+    else if (foc_runtime_set_mechanical(ka, kv, tc) != 0U) {
+        debug_log("<OK:identify mech saved Ka=%.9f Kv=%.9f Tc=%.9f>", ka, kv,
+                  tc);
+    }
+    else {
+        debug_log("<ERR:identify mech FLASH write failed>");
+    }
+}
+
+static void foc_current_pi_init_from_motor(void)
+{
+    const foc_motor_config_t *motor = foc_runtime_get_motor_config();
+    const float bandwidth_rad = 2.0f * PI * CURRENT_LOOP_BANDWIDTH;
+
+    foc_current_pi_init(bandwidth_rad * motor->inductance_ld,
+                        bandwidth_rad * motor->inductance_lq,
+                        bandwidth_rad * motor->resistance * CURRENT_LOOP_DT,
+                        I_I_LIMIT);
+}
+
+/**
+ * @brief FOC外环控制主函数
  */
 void foc_control(void)
 {
-#if FOC_SPEED_CONTROL_ENABLE
-    // 速度环
-    foc_speed_control(foc_ctrl.target_speed);
-#endif
-#if FOC_POSITION_CONTROL_ENABLE
-    // 位置环
-    foc_position_control(foc_ctrl.target_position);
-#endif
+    const foc_runtime_config_t *config;
+    uint32_t ticks_per_ms;
+    uint32_t toggle_ticks;
 
-#if FOC_MECH_PARAM_IDENTIFY_ENABLE
-    foc_mechanical_param_process();
-#endif
+    if (foc_mechanical_param_is_active()) {
+        foc_mechanical_param_process();
+        return;
+    }
+
+    if ((foc_runtime_get_mode() != FOC_MODE_RUNNING) ||
+        (foc_runtime_get_profile() != FOC_RUN_POSITION_STEP)) {
+        return;
+    }
+
+    config = foc_runtime_get_config();
+    ticks_per_ms = (uint32_t)POSITION_LOOP_TIME / 1000U;
+    if (ticks_per_ms == 0U) {
+        ticks_per_ms = 1U;
+    }
+    toggle_ticks = config->step_period_ms * ticks_per_ms;
+
+    if (++step_tick >= toggle_ticks) {
+        step_tick = 0U;
+        step_target_b ^= 1U;
+        foc_ctrl.target_position = (step_target_b != 0U)
+            ? config->step_position_b
+            : config->step_position_a;
+    }
+
+    foc_position_control(foc_ctrl.target_position);
 }
 
 /**
@@ -162,215 +254,104 @@ void foc_control(void)
  */
 void foc_current_in_control(void)
 {
-#if FOC_ENCODER_CALIBRATION_ENABLE && !FOC_ENCODER_CALIBRATION_USE_CONST_TABLE
-    foc_encoder_calibration_open_loop_calibrate();
-#elif FOC_PARAMETER_IDENTIFICATION_ENABLE
-    // 调用电机参数自辨识步骤
-    if (foc_motor_param_ident_is_running()) {
-        foc_motor_parameter_ident_step(); // 执行辨识步骤
+    if (foc_encoder_calibration_is_running() != 0U) {
+        foc_encoder_calibration_open_loop_calibrate();
+        return;
     }
-#else
 
-    // foc_open_loop_control(foc_ctrl.target_speed, foc_ctrl.out_q);
+    if (foc_mechanical_param_is_active()) {
+        foc_current_control(foc_ctrl.target_d, foc_ctrl.target_q);
+        return;
+    }
+
+    if (foc_runtime_get_mode() != FOC_MODE_RUNNING) {
+        foc_output_idle();
+        return;
+    }
+
     foc_current_control(foc_ctrl.target_d, foc_ctrl.target_q);
-#endif
 }
 
 /**
- * @brief FOC速度开环控制
+ * @brief 在 IDLE 模式输出四相中点占空比
  */
-static inline void foc_open_loop_control(float target_speed, float target_outq)
+static inline void foc_output_idle(void)
 {
-    static float angle_accum = 0.0f; // 电角度累加器
-    // foc_ctrl.out_q = target_outq;
+    const uint32_t half_pwm = (uint32_t)(PWM_PERIOD * 0.5f);
 
-    // 赋值A/B相电流
-    alpha_beta.alpha_i = foc_current_data.IA;
-    alpha_beta.beta_i = foc_current_data.IB;
-
-    /************************** 1. 开环电角度计算 **************************/
-    // 机械角速度 -> 电角速度 (rad/s)
-    foc_ctrl.speed = target_speed * MOTOR_POLE_PAIRS;
-
-    // 积分更新电角度：θ = θ + ω_e * 控制周期（控制周期 = 1/CONTROL_LOOP_FREQ）
-    float ctrl_period = PWM_PERIOD_S;
-    angle_accum += foc_ctrl.speed * ctrl_period;
-    angle_accum = angle_normalize(angle_accum);
-    foc_ctrl.angle = angle_accum;
-
-    step_flux_observer_update(&g_flux_obs, alpha_beta.alpha,
-                              alpha_beta.beta, // 电压（上次输出）
-                              alpha_beta.alpha_i, alpha_beta.beta_i, // 电流
-                              PWM_PERIOD_S);
-
-    /************************** 2. Park变换（αβ→DQ） **************************/
-    float sin_theta, cos_theta;
-    CORDIC_SinCos_Rad(foc_ctrl.angle, &sin_theta, &cos_theta);
-
-    // 将alpha-beta坐标系电流转换为DQ坐标系电流
-    park_transform(&alpha_beta, &foc_ctrl, sin_theta, cos_theta);
-
-    foc_ctrl.out_d =
-        foc_id_pid_calculate(foc_ctrl.target_d, foc_ctrl.abc_dq.current_d);
-    foc_ctrl.out_q =
-        foc_iq_pid_calculate(foc_ctrl.target_q, foc_ctrl.abc_dq.current_q);
-
-    /************************** 3. 反Park变换（DQ→αβ）
-     * **************************/
-    inv_park_transform_f32(&foc_ctrl, &alpha_beta, sin_theta, cos_theta);
-
-    /************************** 4. SPWM生成 **************************/
-    spwm_duty_calc(&spwm, &alpha_beta, foc_voltage_data.vbus);
-
-    // 输出PWM到定时器
-    bsp_pwm_set_duty_four_phase(spwm.duty_Ap, spwm.duty_An, spwm.duty_Bp,
-                                spwm.duty_Bn);
+    foc_ctrl.target_d = 0.0f;
+    foc_ctrl.target_q = 0.0f;
+    foc_ctrl.out_d = 0.0f;
+    foc_ctrl.out_q = 0.0f;
+    alpha_beta.alpha = 0.0f;
+    alpha_beta.beta = 0.0f;
+    bsp_pwm_set_duty_four_phase(half_pwm, half_pwm, half_pwm, half_pwm);
 }
 
 /**
  * @brief FOC电流闭环控制函数
+ * @param target_d d 轴目标电流，单位 A
+ * @param target_q q 轴目标电流，单位 A
  */
 static inline void foc_current_control(float target_d, float target_q)
 {
-    float we, id, iq;
-    // 赋值A/B相电流
+    const foc_motor_config_t *motor = foc_runtime_get_motor_config();
+    float sin_theta;
+    float cos_theta;
+
     alpha_beta.alpha_i = foc_current_data.IA;
     alpha_beta.beta_i = foc_current_data.IB;
-
-#if FLUX_OBSERVER_ENABLE
-    // 观测器更新
-    step_flux_observer_update(&g_flux_obs, alpha_beta.alpha,
-                              alpha_beta.beta, // 电压（上次输出）
-                              alpha_beta.alpha_i, alpha_beta.beta_i, // 电流
-                              PWM_PERIOD_S);
-    foc_ctrl.angle = g_flux_obs.theta_hat;
-    we = g_flux_obs.omega_filt;
-    float sin_theta, cos_theta;
-    CORDIC_SinCos_Rad(foc_ctrl.angle, &sin_theta, &cos_theta);
-#else
     foc_ctrl.angle = encoder_data.electrical_angle;
-    we = encoder_data.electrical_speed;
-    float sin_theta, cos_theta;
     CORDIC_SinCos_Rad(foc_ctrl.angle, &sin_theta, &cos_theta);
-#endif
-
-    // 将alpha-beta坐标系电流转换为DQ坐标系电流
     park_transform(&alpha_beta, &foc_ctrl, sin_theta, cos_theta);
 
-    // 电流环PID计算
-    float vd_pi = foc_id_pid_calculate(target_d, foc_ctrl.abc_dq.current_d);
-    float vq_pi = foc_iq_pid_calculate(target_q, foc_ctrl.abc_dq.current_q);
+    float voltage_d = foc_id_pid_calculate(target_d, foc_ctrl.abc_dq.current_d);
+    float voltage_q = foc_iq_pid_calculate(target_q, foc_ctrl.abc_dq.current_q);
+    float electrical_speed = encoder_data.electrical_speed;
 
-    // 交叉/反电动势前馈解耦
-    id = foc_ctrl.abc_dq.current_d;
-    iq = foc_ctrl.abc_dq.current_q;
+    voltage_d +=
+        -electrical_speed * motor->inductance_lq * foc_ctrl.abc_dq.current_q;
+    voltage_q += electrical_speed *
+        (motor->inductance_ld * foc_ctrl.abc_dq.current_d +
+         motor->flux_linkage);
 
-    vd_pi += -we * MOTOR_INDUCTANCE_Lq * iq;
-    vq_pi += we * (MOTOR_INDUCTANCE_Ld * id + MOTOR_FLUX_LINKAGE);
-
-    foc_ctrl.out_d = vd_pi;
-    foc_ctrl.out_q = vq_pi;
-
-    /************************** 1. 反Park变换（DQ→αβ）
-     * **************************/
+    foc_ctrl.out_d = voltage_d;
+    foc_ctrl.out_q = voltage_q;
     inv_park_transform_f32(&foc_ctrl, &alpha_beta, sin_theta, cos_theta);
-
-    /************************** 2. SPWM生成 **************************/
     spwm_duty_calc(&spwm, &alpha_beta, foc_voltage_data.vbus);
-
-    // 输出PWM到定时器
     bsp_pwm_set_duty_four_phase(spwm.duty_Ap, spwm.duty_An, spwm.duty_Bp,
                                 spwm.duty_Bn);
 }
 
 /**
- * @brief FOC速度闭环控制 2Khz 运行
- */
-static inline void foc_speed_control(float target_speed)
-{
-    float iq_fb =
-        foc_speed_pid_calculate(target_speed, encoder_data.mechanical_speed);
-    foc_ctrl.target_q = iq_fb;
-}
-
-/**
- * @brief FOC位置闭环（外环位置环） 2Khz 运行
- * @param target_position 目标机械位置（多圈角度，单位：rad）
+ * @brief FOC位置闭环控制函数
+ * @param target_position 目标机械位置，单位 rad
  */
 static inline void foc_position_control(float target_position)
 {
-    foc_ctrl.shaped_t_v = 0.0f;
-    foc_ctrl.shaped_t_a = 0.0f;
+    float planned_position;
 
-    /************************** 位置指令规划 **************************/
-#if FOC_SHAPER_ENABLE
-#if (FOC_TRAJECTORY_PLANNER_TYPE == FOC_TRAJECTORY_PLANNER_S_CURVE)
-    static float last_target = 0.0f;
-    static uint8_t first_run = 1U;
-    float scurve_position;
-
-    if ((first_run != 0U) ||
-        (fabsf(target_position - last_target) > 0.00174532925f)) {
-        if (first_run != 0U) {
-            foc_ctrl.shaped_t_p = encoder_data.mechanical_position;
-#if FOC_EI_SHAPER_ENABLE
-            ei_shaper_reset(foc_ctrl.shaped_t_p);
-#endif
-        }
-
-        s_curve_set_target(&g_pos_planner, foc_ctrl.shaped_t_p,
+    if ((position_plan_valid == 0U) ||
+        (fabsf(target_position - position_last_target) > 0.00174532925f)) {
+        s_curve_set_target(&position_planner, foc_ctrl.shaped_t_p,
                            target_position);
-        last_target = target_position;
-        first_run = 0U;
+        position_last_target = target_position;
+        position_plan_valid = 1U;
     }
 
-    if (s_curve_is_done(&g_pos_planner)) {
-        scurve_position = target_position;
+    if (s_curve_is_done(&position_planner) != 0U) {
+        planned_position = target_position;
+        foc_ctrl.shaped_t_v = 0.0f;
+        foc_ctrl.shaped_t_a = 0.0f;
     }
     else {
-        scurve_position = s_curve_update(&g_pos_planner);
-#if !FOC_EI_SHAPER_ENABLE
-        foc_ctrl.shaped_t_v = g_pos_planner.current_vel;
-        foc_ctrl.shaped_t_a = g_pos_planner.current_acc;
-#endif
+        planned_position = s_curve_update(&position_planner);
+        foc_ctrl.shaped_t_v = position_planner.current_vel;
+        foc_ctrl.shaped_t_a = position_planner.current_acc;
     }
 
-#if FOC_EI_SHAPER_ENABLE
-    foc_ctrl.shaped_t_p = ei_shaper_process(scurve_position);
-#else
-    foc_ctrl.shaped_t_p = scurve_position;
-#endif
-#elif (FOC_TRAJECTORY_PLANNER_TYPE == FOC_TRAJECTORY_PLANNER_TRAPEZOID)
-    static uint8_t first_run = 1U;
-
-    if (first_run != 0U) {
-        trapezoid_planner_reset(&g_pos_planner,
-                                encoder_data.mechanical_position);
-        first_run = 0U;
-    }
-
-    foc_ctrl.shaped_t_p = trapezoid_planner_update(
-        &g_pos_planner, target_position, encoder_data.mechanical_position,
-        FOC_TRAPEZOID_COMMAND_MAX_VELOCITY, FOC_TRAPEZOID_ACCELERATION);
-    foc_ctrl.shaped_t_v = g_pos_planner.velocity_setpoint;
-    foc_ctrl.shaped_t_a = g_pos_planner.acceleration_setpoint;
-#else
-    foc_ctrl.shaped_t_p = target_position;
-#endif
-#else
-    foc_ctrl.shaped_t_p = target_position;
-#endif
-
-#if FOC_LADRC_ENABLE
-    const float position_feedback = encoder_data.mechanical_position;
-    float iq_fb = position_ladrc_update(&position_ladrc, foc_ctrl.shaped_t_p,
-                                        foc_ctrl.shaped_t_v,
-                                        foc_ctrl.shaped_t_a, position_feedback);
-#else
-    float iq_fb = foc_position_pid_calculate(foc_ctrl.shaped_t_p,
-                                             encoder_data.mechanical_position);
-#endif
-
-    // 计算最终目标Q轴电流
-    foc_ctrl.target_q = iq_fb;
+    foc_ctrl.shaped_t_p = planned_position;
+    foc_ctrl.target_q = position_ladrc_update(
+        &position_ladrc, foc_ctrl.shaped_t_p, foc_ctrl.shaped_t_v,
+        foc_ctrl.shaped_t_a, encoder_data.mechanical_position);
 }

@@ -1,19 +1,14 @@
 #ifndef __FOC_MECHANICAL_PARAM_H
 #define __FOC_MECHANICAL_PARAM_H
 
-#include "foc_control.h"
 #include <stdbool.h>
 #include <stdint.h>
 
-#define FOC_MECH_PARAM_IDENTIFY_ENABLE          (0U)
 #define MECH_IDENTIFY_LOOP_FREQ_HZ              (2000U)
 
 /* ===================== 时域辨识配置 ===================== */
 /* 电流等级（A），峰值 ≤ 0.15A，且必须大于库仑摩擦电流 */
 #define MECH_IDENTIFY_CURRENT_LEVELS            (3U)
-static const float s_current_levels[MECH_IDENTIFY_CURRENT_LEVELS] = {
-    0.14f, 0.13f, 0.12f
-};
 
 /* 各阶段持续时间（毫秒），根据行程调整 */
 #define MECH_IDENTIFY_ACCEL_MS                  (250U)  /* 加速时间 */
@@ -112,7 +107,6 @@ typedef struct
     /* 当前 θ 估计（用于 IRLS 权重计算） */
     float theta[4];
 
-    bool debug_log_enabled;
     bool identify_request;
 } mech_identify_t;
 
@@ -122,7 +116,7 @@ void foc_mechanical_param_init(void);
 void foc_mechanical_param_process(void);
 void foc_mechanical_param_start(void);
 void foc_mechanical_param_stop(void);
+bool foc_mechanical_param_is_active(void);
 const mech_identify_result_t* foc_mechanical_param_get_result(void);
-void foc_mechanical_param_debug_log(void);
 
 #endif /* __FOC_MECHANICAL_PARAM_H */

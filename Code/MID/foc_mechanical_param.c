@@ -1,28 +1,33 @@
 #include "foc_mechanical_param.h"
-#include <stdio.h>
+#include "foc_control.h"
+
 #include <math.h>
 #include <string.h>
 
 mech_identify_t g_mech_identify = {0};
+static const float s_current_levels[MECH_IDENTIFY_CURRENT_LEVELS] = {
+    0.14f, 0.13f, 0.12f
+};
 
 /* 静态函数声明 */
 static void mech_identify_reset(void);
-#if FOC_MECH_PARAM_IDENTIFY_ENABLE
 static void mech_identify_calculate(void);
 static void mech_identify_accumulate_weighted(float iq, float speed, float accel, float weight);
 static bool mech_solve_linear4(float A[4][4], float b[4], float x[4]);
 static float mech_calc_huber_weight(float residual);
-#endif
 
-/* 初始化 */
+/**
+ * @brief 初始化机械参数辨识状态机
+ */
 void foc_mechanical_param_init(void)
 {
     mech_identify_reset();
-    g_mech_identify.debug_log_enabled = false;
     g_mech_identify.identify_request = false;
 }
 
-/* 复位所有状态 */
+/**
+ * @brief 复位机械参数辨识的全部运行数据
+ */
 static void mech_identify_reset(void)
 {
     g_mech_identify.state = MECH_IDENTIFY_IDLE;
@@ -61,31 +66,48 @@ static void mech_identify_reset(void)
     g_mech_identify.result.valid = false;
 }
 
-/* 启动辨识 */
+/**
+ * @brief 请求启动一次机械参数辨识
+ */
 void foc_mechanical_param_start(void)
 {
-#if FOC_MECH_PARAM_IDENTIFY_ENABLE
     mech_identify_reset();
     g_mech_identify.identify_request = true;
-    g_mech_identify.debug_log_enabled = true;
-#endif
 }
 
-/* 停止辨识 */
+/**
+ * @brief 停止机械参数辨识并清零目标电流
+ */
 void foc_mechanical_param_stop(void)
 {
+    foc_ctrl.target_q = 0.0f;
     mech_identify_reset();
-    g_mech_identify.debug_log_enabled = false;
 }
 
-/* 获取结果 */
+/**
+ * @brief 查询机械参数辨识是否处于活动状态
+ * @return true 表示辨识请求、采样或结果处理尚未结束
+ */
+bool foc_mechanical_param_is_active(void)
+{
+    return g_mech_identify.identify_request ||
+        (g_mech_identify.state != MECH_IDENTIFY_IDLE);
+}
+
+/**
+ * @brief 获取最近一次机械参数辨识结果
+ * @return 辨识结果只读指针
+ */
 const mech_identify_result_t* foc_mechanical_param_get_result(void)
 {
     return &g_mech_identify.result;
 }
 
-#if FOC_MECH_PARAM_IDENTIFY_ENABLE
-/* Huber 权重计算 */
+/**
+ * @brief 根据残差计算 Huber 鲁棒回归权重
+ * @param residual 当前样本残差
+ * @return 样本权重
+ */
 static float mech_calc_huber_weight(float residual)
 {
     float abs_r = fabsf(residual);
@@ -186,8 +208,6 @@ static bool mech_solve_linear4(float A[4][4], float b[4], float x[4])
 static void mech_identify_calculate(void)
 {
     if (g_mech_identify.acc_sample_count < 20U) {
-        debug_log("[Mech] Too few samples (%lu)\r\n",
-               (unsigned long)g_mech_identify.acc_sample_count);
         g_mech_identify.result.valid = false;
         g_mech_identify.state = MECH_IDENTIFY_FAILED;
         return;
@@ -218,7 +238,6 @@ static void mech_identify_calculate(void)
     float theta_new[4];
 
     if (!mech_solve_linear4(A, b, theta_new)) {
-        debug_log("[Mech] Singular matrix!\r\n");
         g_mech_identify.result.valid = false;
         g_mech_identify.state = MECH_IDENTIFY_FAILED;
         return;
@@ -227,10 +246,6 @@ static void mech_identify_calculate(void)
     if (g_mech_identify.irls_iter < MECH_IDENTIFY_MAX_IRLS_ITERATIONS - 1U) {
         memcpy(g_mech_identify.theta, theta_new, sizeof(theta_new));
         g_mech_identify.irls_iter++;
-
-        debug_log("[IRLS] Iter %lu: Ka=%.6f, Kv=%.6f, Tc=%.4f\r\n",
-               (unsigned long)g_mech_identify.irls_iter,
-               (double)theta_new[0], (double)theta_new[1], (double)theta_new[2]);
 
         /* 清空累积，重新采集 */
         memset(g_mech_identify.acc_A, 0, sizeof(g_mech_identify.acc_A));
@@ -243,9 +258,9 @@ static void mech_identify_calculate(void)
     }
 
     /* 最终参数检查 */
-    if (theta_new[0] <= 0.0f || theta_new[1] <= 0.0f) {
-        debug_log("[Mech] Invalid params: Ka=%.6f, Kv=%.6f\r\n",
-               (double)theta_new[0], (double)theta_new[1]);
+    if ((!isfinite(theta_new[0])) || (!isfinite(theta_new[1])) ||
+        (!isfinite(theta_new[2])) || (theta_new[0] <= 0.0f) ||
+        (theta_new[1] <= 0.0f)) {
         g_mech_identify.result.valid = false;
         g_mech_identify.state = MECH_IDENTIFY_FAILED;
         return;
@@ -255,6 +270,11 @@ static void mech_identify_calculate(void)
     float N = (float)g_mech_identify.acc_sample_count;
     float mean_iq = b[3] / N;
     float ss_tot = g_mech_identify.sum_iq_sq - N * mean_iq * mean_iq;
+    if ((!isfinite(ss_tot)) || (ss_tot <= 1e-9f)) {
+        g_mech_identify.result.valid = false;
+        g_mech_identify.state = MECH_IDENTIFY_FAILED;
+        return;
+    }
     float tAtheta = 0.0f;
     for (i = 0; i < 4; i++)
         for (j = 0; j < 4; j++)
@@ -265,8 +285,7 @@ static void mech_identify_calculate(void)
     if (ss_res < 0) ss_res = 0;
     float r2 = 1.0f - ss_res / ss_tot;
 
-    if (r2 < MECH_IDENTIFY_FIT_R2_THRESHOLD) {
-        debug_log("[Mech] Poor fit R2=%.3f\r\n", (double)r2);
+    if ((!isfinite(r2)) || (r2 < MECH_IDENTIFY_FIT_R2_THRESHOLD)) {
         g_mech_identify.result.valid = false;
         g_mech_identify.state = MECH_IDENTIFY_FAILED;
         return;
@@ -285,14 +304,11 @@ static void mech_identify_calculate(void)
 
     g_mech_identify.state = MECH_IDENTIFY_COMPLETE;
 }
-#endif
-
 /**
  * @brief 主处理函数
  */
 void foc_mechanical_param_process(void)
 {
-#if FOC_MECH_PARAM_IDENTIFY_ENABLE
     if (g_mech_identify.identify_request) {
         g_mech_identify.state = MECH_IDENTIFY_START;
         g_mech_identify.identify_request = false;
@@ -547,41 +563,4 @@ void foc_mechanical_param_process(void)
         default:
             break;
     }
-#endif
-}
-
-/**
- * @brief 调试日志输出
- */
-void foc_mechanical_param_debug_log(void)
-{
-#if FOC_MECH_PARAM_IDENTIFY_ENABLE
-    if (!g_mech_identify.debug_log_enabled) {
-        return;
-    }
-
-    if (g_mech_identify.state == MECH_IDENTIFY_COMPLETE) {
-        if (g_mech_identify.result.valid) {
-            debug_log("\r\n========================================\r\n");
-            debug_log("  Mechanical Parameter Identification\r\n");
-            debug_log("  (Time Domain + IRLS)\r\n");
-            debug_log("========================================\r\n");
-            debug_log("  Ka (J/Kt)     = %.6f\r\n", (double)g_mech_identify.result.Ka);
-            debug_log("  Kv (B/Kt)     = %.6f\r\n", (double)g_mech_identify.result.Kv);
-            debug_log("  Tc (friction) = %.4f A\r\n", (double)g_mech_identify.result.Tc);
-            debug_log("----------------------------------------\r\n");
-            debug_log("  Total samples = %lu\r\n", (unsigned long)g_mech_identify.acc_sample_count);
-            debug_log("  IRLS iter     = %lu\r\n", (unsigned long)g_mech_identify.irls_iter);
-            debug_log("  Iq level      = %.3f A\r\n", (double)g_mech_identify.result.iq_step);
-            debug_log("  Last speed    = %.3f rad/s\r\n", (double)g_mech_identify.result.speed_steady);
-            debug_log("========================================\r\n\r\n");
-            g_mech_identify.debug_log_enabled = false;
-        }
-    } else if (g_mech_identify.state == MECH_IDENTIFY_FAILED) {
-        debug_log("\r\n[Mechanical Param] Identification FAILED!\r\n");
-        debug_log("  Iteration = %lu\r\n\r\n",
-               (unsigned long)g_mech_identify.iteration_count);
-        g_mech_identify.debug_log_enabled = false;
-    }
-#endif
 }

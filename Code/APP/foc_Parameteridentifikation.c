@@ -1,4 +1,6 @@
 #include "foc_Parameteridentifikation.h"
+#include <string.h>
+
 #include "cordic.h"
 
 typedef enum {

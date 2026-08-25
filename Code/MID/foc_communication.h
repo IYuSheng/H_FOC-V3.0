@@ -1,7 +1,6 @@
 ﻿#ifndef FOC_COMMUNICATION_H
 #define FOC_COMMUNICATION_H
 
-#include "foc_prase.h"
 #include "fdcan.h"
 #include "foc_conversion.h"
 
@@ -22,7 +21,6 @@ typedef struct
 
 extern canfd_joint_cmd_t g_canfd_joint_cmd;
 
-void foc_control_set(void);
 void CAN_ReportStatus(void);
 void CAN_Process(void);
 
