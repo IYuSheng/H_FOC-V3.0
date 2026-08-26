@@ -12,13 +12,15 @@ typedef enum
 typedef enum
 {
     FOC_RUN_CURRENT = 0,
-    FOC_RUN_POSITION_STEP
+    FOC_RUN_POSITION_STEP,
+    FOC_RUN_SPEED
 } foc_run_profile_t;
 
 typedef struct
 {
     float target_id;
     float target_iq;
+    float target_speed;
     float step_position_a;
     float step_position_b;
     uint32_t step_period_ms;
@@ -55,6 +57,7 @@ void foc_runtime_set_debug(uint8_t enabled);
 
 uint8_t foc_runtime_set_id(float target_id);
 uint8_t foc_runtime_set_iq(float target_iq);
+uint8_t foc_runtime_set_speed(float target_speed);
 uint8_t foc_runtime_set_step(float position_a, float position_b,
                              uint32_t period_ms);
 uint8_t foc_runtime_set_motor(float resistance, float inductance_ld,

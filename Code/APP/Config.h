@@ -29,30 +29,28 @@
 
 // -------------------------- PI调节器参数 --------------------------
 // 电流环PI
-#define CURRENT_LOOP_BANDWIDTH 1000.0f // 电流环带宽 (Hz)
 #define CURRENT_LOOP_COUNT     PWM_FREQ
 #define CURRENT_LOOP_DT        (1.0f / CURRENT_LOOP_COUNT) // 电流环调用周期 (单位：s)
-#define I_D_P_GAIN                                                             \
-    (2.0f * 3.14159265358979f * MOTOR_INDUCTANCE_Ld * CURRENT_LOOP_BANDWIDTH)
-#define I_Q_P_GAIN                                                             \
-    (2.0f * 3.14159265358979f * MOTOR_INDUCTANCE_Lq * CURRENT_LOOP_BANDWIDTH)
-#define I_I_GAIN                                                               \
-    (2.0f * 3.14159265358979f * MOTOR_RESISTANCE * CURRENT_LOOP_BANDWIDTH *    \
-     CURRENT_LOOP_DT)
-#define I_I_LIMIT 5.0f
+#define I_I_LIMIT 3.0f
 
 // 速度环PI
-#define SPEED_LOOP_TIME 2000.0f
+#define SPEED_LOOP_TIME    5000.0f
 #define SPEED_LOOP_DT   (1.0f / SPEED_LOOP_TIME) // 速度环调用周期 (单位：s)
 #define SPEED_P_GAIN    0.00572957795f           // A/(rad/s)
 #define SPEED_I         0.000f
 #define SPEED_I_GAIN    (SPEED_I * SPEED_LOOP_DT) // KI = Ki * Ts(减小一个乘法)
 #define SPEED_I_LIMIT   0.2f
-#define SPEED_OUT_LIMIT 0.4f
+#define SPEED_OUT_LIMIT    3.0f
+#define SPEED_LADRC_CONTROL_BANDWIDTH 120.0f  // wc, rad/s
+#define SPEED_LESO_BANDWIDTH          350.0f  // wo, rad/s
+#define SPEED_LADRC_B0                1264.0f // rad/s^2/A
+#define SPEED_LADRC_OUT_MIN           (-SPEED_OUT_LIMIT)
+#define SPEED_LADRC_OUT_MAX           SPEED_OUT_LIMIT
 
 // 位置环PID
-#define POSITION_LOOP_TIME 2000.0f // 位置环调用频率 (2000Hz)
+#define POSITION_LOOP_TIME  1000.0f // 位置环调用频率 (1000Hz)
 #define POSITION_LOOP_DT   (1.0f / POSITION_LOOP_TIME) // 位置环调用周期 (单位：s)
+#define POSITION_CASCADE_KP 8.0f // 位置误差到速度修正，1/s
 #define POSITION_P_GAIN    1.2f                        // A/rad
 #define POSITION_I         0.0f
 #define POSITION_I_GAIN                                                        \

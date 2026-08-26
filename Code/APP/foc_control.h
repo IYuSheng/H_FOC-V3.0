@@ -16,7 +16,7 @@
 #include "tim.h"
 #include "usart.h"
 
-#define FOC_S_CURVE_MAX_VELOCITY     17.45329252f
+#define FOC_S_CURVE_MAX_VELOCITY     0.0f /* <= 0: no velocity ceiling */
 #define FOC_S_CURVE_MAX_ACCELERATION 349.0658504f
 #define FOC_S_CURVE_MAX_JERK         1745.329252f
 

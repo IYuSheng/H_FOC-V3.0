@@ -85,14 +85,27 @@ typedef struct {
     uint8_t  agc_value;                 // AGC 值（反映磁场强度：0=强，255=弱）
 } encoder_data_t;
 
+#if 0
 typedef struct {
     float theta_hat;       // estimated position, rad
     float omega_hat;       // estimated velocity, rad/s
     uint8_t inited;
 } pos_obs_t;
+#endif
+
+typedef struct {
+    float theta_est;       // PLL estimated single-turn angle, rad
+    float omega_integral;  // PLL integral frequency state, rad/s
+    float omega_est;       // PLL loop-filter speed output, rad/s
+    float bandwidth_hz;    // Current adaptive bandwidth, Hz
+    uint8_t inited;
+} encoder_pll_t;
 
 extern encoder_data_t encoder_data;
+#if 0
 extern pos_obs_t g_pos_obs;
+#endif
+extern encoder_pll_t g_encoder_pll;
 
 /* ================================= 函数声明 ================================= */
 /**

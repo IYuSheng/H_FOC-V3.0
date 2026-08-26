@@ -16,6 +16,7 @@
 
 #define FOC_RUNTIME_DEFAULT_ID          0.0f
 #define FOC_RUNTIME_DEFAULT_IQ          0.5f
+#define FOC_RUNTIME_DEFAULT_SPEED       0.0f
 #define FOC_RUNTIME_DEFAULT_STEP_A      4.537856055f
 #define FOC_RUNTIME_DEFAULT_STEP_B      (-4.537856055f)
 #define FOC_RUNTIME_DEFAULT_STEP_PERIOD 2000U
@@ -284,6 +285,7 @@ void foc_runtime_init(void)
 
     runtime_config.target_id = FOC_RUNTIME_DEFAULT_ID;
     runtime_config.target_iq = FOC_RUNTIME_DEFAULT_IQ;
+    runtime_config.target_speed = FOC_RUNTIME_DEFAULT_SPEED;
     runtime_config.step_position_a = FOC_RUNTIME_DEFAULT_STEP_A;
     runtime_config.step_position_b = FOC_RUNTIME_DEFAULT_STEP_B;
     runtime_config.step_period_ms = FOC_RUNTIME_DEFAULT_STEP_PERIOD;
@@ -342,7 +344,7 @@ foc_mode_t foc_runtime_get_mode(void)
 
 /**
  * @brief 获取 RUNNING 模式的控制类型
- * @return 电流运行或位置阶跃
+ * @return 电流、速度或位置阶跃运行模式
  */
 foc_run_profile_t foc_runtime_get_profile(void)
 {
@@ -448,13 +450,13 @@ void foc_runtime_set_debug(uint8_t enabled)
 }
 
 /**
- * @brief 在 IDLE 模式设置 RAM 中的 d 轴目标电流
+ * @brief 设置 RAM 中的 d 轴目标电流
  * @param target_id d 轴目标电流，单位 A
  * @return 1 表示成功，0 表示状态或数值无效
  */
 uint8_t foc_runtime_set_id(float target_id)
 {
-    if ((runtime_mode != FOC_MODE_IDLE) || (!isfinite(target_id)) ||
+    if ((!isfinite(target_id)) ||
         (target_id < -CURRENT_LIMIT) || (target_id > CURRENT_LIMIT)) {
         return 0U;
     }
@@ -467,13 +469,13 @@ uint8_t foc_runtime_set_id(float target_id)
 }
 
 /**
- * @brief 在 IDLE 模式设置 RAM 中的 q 轴目标电流
+ * @brief 设置 RAM 中的 q 轴目标电流
  * @param target_iq q 轴目标电流，单位 A
  * @return 1 表示成功，0 表示状态或数值无效
  */
 uint8_t foc_runtime_set_iq(float target_iq)
 {
-    if ((runtime_mode != FOC_MODE_IDLE) || (!isfinite(target_iq)) ||
+    if ((!isfinite(target_iq)) ||
         (target_iq < -CURRENT_LIMIT) || (target_iq > CURRENT_LIMIT)) {
         return 0U;
     }
@@ -486,7 +488,25 @@ uint8_t foc_runtime_set_iq(float target_iq)
 }
 
 /**
- * @brief 在 IDLE 模式设置 RAM 中的位置阶跃参数
+ * @brief 设置 RAM 中的目标机械速度
+ * @param target_speed 目标机械速度，单位 rad/s
+ * @return 1 表示成功，0 表示状态或数值无效
+ */
+uint8_t foc_runtime_set_speed(float target_speed)
+{
+    if (!isfinite(target_speed)) {
+        return 0U;
+    }
+    if (target_speed == runtime_config.target_speed) {
+        return 1U;
+    }
+
+    runtime_config.target_speed = target_speed;
+    return 1U;
+}
+
+/**
+ * @brief 设置 RAM 中的位置阶跃参数
  * @param position_a 阶跃端点 A，单位 rad
  * @param position_b 阶跃端点 B，单位 rad
  * @param period_ms 端点切换周期，单位 ms
@@ -495,8 +515,7 @@ uint8_t foc_runtime_set_iq(float target_iq)
 uint8_t foc_runtime_set_step(float position_a, float position_b,
                              uint32_t period_ms)
 {
-    if ((runtime_mode != FOC_MODE_IDLE) || (!isfinite(position_a)) ||
-        (!isfinite(position_b)) ||
+    if ((!isfinite(position_a)) || (!isfinite(position_b)) ||
         (period_ms < FOC_RUNTIME_STEP_PERIOD_MIN) ||
         (period_ms > FOC_RUNTIME_STEP_PERIOD_MAX)) {
         return 0U;
@@ -584,15 +603,16 @@ uint8_t foc_runtime_set_mechanical(float ka, float kv, float tc)
 }
 
 /**
- * @brief 执行不可逆的 IDLE 到 RUNNING 模式切换
+ * @brief 进入 RUNNING 模式或在线切换运行控制类型
  * @param profile RUNNING 模式使用的控制类型
  * @return 1 表示切换成功，0 表示状态不允许
  */
 uint8_t foc_runtime_start(foc_run_profile_t profile)
 {
-    if ((runtime_ready == 0U) || (runtime_mode != FOC_MODE_IDLE) ||
+    if ((runtime_ready == 0U) ||
         ((profile != FOC_RUN_CURRENT) &&
-         (profile != FOC_RUN_POSITION_STEP))) {
+         (profile != FOC_RUN_POSITION_STEP) &&
+         (profile != FOC_RUN_SPEED))) {
         return 0U;
     }
 

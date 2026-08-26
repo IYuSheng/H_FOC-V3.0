@@ -181,6 +181,7 @@ uint16_t encoder_read_raw_angle(void)
     return raw_angle;
 }
 
+#if 0
 pos_obs_t g_pos_obs = {0};
 
 // 观测器带宽
@@ -225,6 +226,77 @@ static inline void pos_obs_update(float theta_meas, float dt)
     g_pos_obs.theta_hat = angle_normalize(theta_pred + Kp * dt * e);
     g_pos_obs.omega_hat = omega_pred + Kv * dt * e;
 }
+#endif
+
+#define ENCODER_PLL_BW_MIN_HZ        30.0f
+#define ENCODER_PLL_BW_MAX_HZ        180.0f
+#define ENCODER_PLL_FULL_SPEED_RAD_S 100.0f
+#define ENCODER_PLL_DAMPING          1.0f
+#define ENCODER_PLL_BW_ADAPT_TAU_S   0.005f
+
+encoder_pll_t g_encoder_pll = {0};
+
+/**
+ * @brief 自适应带宽编码器PLL，输出机械速度
+ * @param theta_meas 编码器单圈机械角度，rad
+ * @param dt 更新周期，s
+ */
+static inline void encoder_pll_update(float theta_meas, float dt)
+{
+    float error;
+    float activity;
+    float schedule;
+    float target_bandwidth_hz;
+    float adapt_alpha;
+    float wn;
+    float kp;
+    float ki;
+
+    if (dt <= 0.0f) {
+        return;
+    }
+
+    if (g_encoder_pll.inited == 0U) {
+        g_encoder_pll.theta_est = theta_meas;
+        g_encoder_pll.omega_integral = 0.0f;
+        g_encoder_pll.omega_est = 0.0f;
+        g_encoder_pll.bandwidth_hz = ENCODER_PLL_BW_MIN_HZ;
+        g_encoder_pll.inited = 1U;
+        return;
+    }
+
+    error = theta_meas - g_encoder_pll.theta_est;
+    while (error > _PI) {
+        error -= _2PI;
+    }
+    while (error < -_PI) {
+        error += _2PI;
+    }
+
+    /* 积分速度负责稳态调度，相位误差负责静止起动时快速提升带宽。 */
+    activity = fabsf(g_encoder_pll.omega_integral) +
+        (2.0f * _PI * ENCODER_PLL_BW_MIN_HZ) * fabsf(error);
+    schedule = activity / ENCODER_PLL_FULL_SPEED_RAD_S;
+    if (schedule > 1.0f) {
+        schedule = 1.0f;
+    }
+    schedule = schedule * schedule * (3.0f - 2.0f * schedule);
+
+    target_bandwidth_hz = ENCODER_PLL_BW_MIN_HZ +
+        (ENCODER_PLL_BW_MAX_HZ - ENCODER_PLL_BW_MIN_HZ) * schedule;
+    adapt_alpha = dt / (ENCODER_PLL_BW_ADAPT_TAU_S + dt);
+    g_encoder_pll.bandwidth_hz +=
+        adapt_alpha * (target_bandwidth_hz - g_encoder_pll.bandwidth_hz);
+
+    wn = _2PI * g_encoder_pll.bandwidth_hz;
+    kp = 2.0f * ENCODER_PLL_DAMPING * wn;
+    ki = wn * wn;
+
+    g_encoder_pll.omega_integral += ki * error * dt;
+    g_encoder_pll.omega_est = g_encoder_pll.omega_integral + kp * error;
+    g_encoder_pll.theta_est =
+        angle_normalize(g_encoder_pll.theta_est + g_encoder_pll.omega_est * dt);
+}
 
 /**
   * @brief  更新编码器单圈机械角度和多圈机械位置
@@ -244,8 +316,8 @@ float encoder_read_mechanical_angle(void)
         last_raw = current_angle;
         first_run = 0U;
 
-        pos_obs_update(encoder_data.mechanical_angle, PWM_PERIOD_S);
-        encoder_data.mechanical_speed = g_pos_obs.omega_hat;
+        encoder_pll_update(encoder_data.mechanical_angle, PWM_PERIOD_S);
+        encoder_data.mechanical_speed = g_encoder_pll.omega_est;
         encoder_data.electrical_speed =
             encoder_data.mechanical_speed * MOTOR_POLE_PAIRS;
         return encoder_data.mechanical_angle;
@@ -266,9 +338,9 @@ float encoder_read_mechanical_angle(void)
         ((float)encoder_data.mechanical_turns * _2PI) + current_angle;
     last_raw = current_angle;
 
-    pos_obs_update(encoder_data.mechanical_angle, PWM_PERIOD_S);
+    encoder_pll_update(encoder_data.mechanical_angle, PWM_PERIOD_S);
 
-    encoder_data.mechanical_speed = g_pos_obs.omega_hat;
+    encoder_data.mechanical_speed = g_encoder_pll.omega_est;
     encoder_data.electrical_speed =
         encoder_data.mechanical_speed * MOTOR_POLE_PAIRS;
     return encoder_data.mechanical_angle;

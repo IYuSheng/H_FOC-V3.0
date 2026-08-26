@@ -14,7 +14,7 @@
 #define TIM3_PSC                    169U
 #define TIM3_ARR                    999U
 #define TIM4_PSC                    169U
-#define TIM4_ARR                    499U
+#define TIM4_ARR                    199U
 #define TIM1_PWM_ARR                ((uint32_t)PWM_PERIOD)
 #define TIM1_ADC_TRIGGER_COMPARE    (TIM1_PWM_ARR - 1U)
 #define TIM15_ENCODER_COMPARE       (TIM1_ADC_TRIGGER_COMPARE - 1600U)

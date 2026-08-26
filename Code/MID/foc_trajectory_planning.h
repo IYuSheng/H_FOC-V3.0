@@ -13,7 +13,7 @@ typedef enum {
 
 typedef struct {
     /* ========== 用户设定约束（规划前配置） ========== */
-    float v_max;            /**< 最大速度限制 [rad/s]，轨迹规划的速度上限 */
+    float v_max;            /**< 最大速度限制 [rad/s]，<=0 表示不限制 */
     float a_max;            /**< 最大加速度限制 [rad/s²]，受电机转矩能力限制 */
     float j_max;            /**< 最大加加速度(Jerk)限制 [rad/s³]，影响机械冲击 */
     float freq_t;           /**< 控制周期 [s]，如1kHz控制频率对应0.001s */
@@ -69,7 +69,7 @@ typedef struct {
 /**
  * @brief 初始化S曲线规划器
  * @param planner 规划器实例指针
- * @param vmax    最大速度限制 [rad/s]
+ * @param vmax    最大速度限制 [rad/s]，<=0 表示不限制
  * @param amax    最大加速度限制 [rad/s²]
  * @param jmax    最大加加速度限制 [rad/s³]
  * @param freq_t  控制周期 [s]

@@ -2,11 +2,15 @@
 
 #include <math.h>
 
+#define POSITION_LOOP_DECIMATION 5U
+
 static SCurve_Planner_t position_planner;
-static PositionLadrc_t position_ladrc;
+// static PositionLadrc_t position_ladrc;
+static SpeedLadrc_t speed_ladrc;
 static uint32_t step_tick;
 static uint8_t step_target_b;
 static uint8_t position_plan_valid;
+static uint8_t position_loop_tick;
 static float position_last_target;
 
 /**
@@ -27,13 +31,28 @@ static inline void foc_output_idle(void);
 static inline void foc_current_control(float target_d, float target_q);
 
 /**
+ * @brief FOC速度闭环控制函数
+ * @param target_speed 目标机械速度，单位 rad/s
+ * @param target_acceleration 目标机械角加速度前馈，单位 rad/s^2
+ */
+static inline void foc_speed_control(float target_speed,
+                                     float target_acceleration);
+
+/**
  * @brief FOC位置闭环控制函数
  * @param target_position 目标机械位置，单位 rad
  */
 static inline void foc_position_control(float target_position);
 
 /**
- * @brief 按串口开关输出连续五通道波形
+ * @brief 跟踪给定的位置、速度和加速度轨迹
+ */
+static inline void foc_position_track(float planned_position,
+                                      float planned_velocity,
+                                      float planned_acceleration);
+
+/**
+ * @brief 波形打印
  */
 void foc_debug(void)
 {
@@ -62,9 +81,11 @@ void foc_debug(void)
     // foc_ctrl.abc_dq.current_q);
     // debug_log("%.4f", foc_ctrl.Te);
 
-    debug_log("%.4f, %.4f, %.4f, %.4f, %.4f", foc_ctrl.target_q,
-              foc_ctrl.abc_dq.current_q, encoder_data.mechanical_position,
-              encoder_data.mechanical_speed, foc_ctrl.shaped_t_p);
+    debug_log("%.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f",
+              foc_ctrl.target_q, foc_ctrl.abc_dq.current_q,
+              encoder_data.mechanical_position, encoder_data.mechanical_speed,
+              foc_ctrl.target_speed, foc_ctrl.shaped_t_p, foc_ctrl.shaped_t_v,
+              foc_ctrl.shaped_t_p - encoder_data.mechanical_position);
 }
 
 /**
@@ -83,7 +104,9 @@ void foc_start_init(void)
     foc_ctrl.shaped_t_a = 0.0f;
 
     foc_current_pi_init_from_motor();
-    position_ladrc_reset(&position_ladrc, encoder_data.mechanical_position);
+    // position_ladrc_reset(&position_ladrc,
+    //                      encoder_data.mechanical_position);
+    speed_ladrc_reset(&speed_ladrc, encoder_data.mechanical_speed);
     s_curve_planner_init(&position_planner, FOC_S_CURVE_MAX_VELOCITY,
                          FOC_S_CURVE_MAX_ACCELERATION, FOC_S_CURVE_MAX_JERK,
                          POSITION_LOOP_DT);
@@ -95,28 +118,49 @@ void foc_start_init(void)
 
 /**
  * @brief 按指定控制类型进入 RUNNING 模式
- * @param profile 电流运行或位置阶跃
+ * @param profile 电流、速度或位置阶跃运行模式
  * @return 1 表示启动成功，0 表示状态不允许
  */
 uint8_t foc_control_start(foc_run_profile_t profile)
 {
     const foc_runtime_config_t *config = foc_runtime_get_config();
+    uint32_t primask;
+    uint8_t started;
 
     if ((foc_runtime_is_ready() == 0U) ||
-        (foc_runtime_get_mode() != FOC_MODE_IDLE) ||
         (foc_encoder_calibration_is_running() != 0U) ||
         foc_mechanical_param_is_active()) {
         return 0U;
     }
 
+    if ((foc_runtime_get_mode() == FOC_MODE_RUNNING) &&
+        (foc_runtime_get_profile() == profile) &&
+        (profile != FOC_RUN_POSITION_STEP)) {
+        foc_ctrl.target_d = config->target_id;
+        if (profile == FOC_RUN_CURRENT) {
+            foc_ctrl.target_q = config->target_iq;
+        }
+        else if (profile == FOC_RUN_SPEED) {
+            foc_ctrl.target_speed = config->target_speed;
+        }
+        return 1U;
+    }
+
+    primask = __get_PRIMASK();
+    __disable_irq();
+
     foc_current_pi_init_from_motor();
-    position_ladrc_reset(&position_ladrc, encoder_data.mechanical_position);
+    // position_ladrc_reset(&position_ladrc,
+    //                      encoder_data.mechanical_position);
+    speed_ladrc_reset(&speed_ladrc, encoder_data.mechanical_speed);
     s_curve_planner_init(&position_planner, FOC_S_CURVE_MAX_VELOCITY,
                          FOC_S_CURVE_MAX_ACCELERATION, FOC_S_CURVE_MAX_JERK,
                          POSITION_LOOP_DT);
 
     foc_ctrl.target_d = config->target_id;
     foc_ctrl.target_q = (profile == FOC_RUN_CURRENT) ? config->target_iq : 0.0f;
+    foc_ctrl.target_speed =
+        (profile == FOC_RUN_SPEED) ? config->target_speed : 0.0f;
     foc_ctrl.target_position = (profile == FOC_RUN_POSITION_STEP)
         ? config->step_position_a
         : encoder_data.mechanical_position;
@@ -129,8 +173,13 @@ uint8_t foc_control_start(foc_run_profile_t profile)
     step_tick = 0U;
     step_target_b = 0U;
     position_plan_valid = 0U;
+    position_loop_tick = POSITION_LOOP_DECIMATION - 1U;
 
-    return foc_runtime_start(profile);
+    started = foc_runtime_start(profile);
+    if (primask == 0U) {
+        __enable_irq();
+    }
+    return started;
 }
 
 /**
@@ -204,12 +253,13 @@ void foc_control_background_process(void)
 static void foc_current_pi_init_from_motor(void)
 {
     const foc_motor_config_t *motor = foc_runtime_get_motor_config();
-    const float bandwidth_rad = 2.0f * PI * CURRENT_LOOP_BANDWIDTH;
+    const float tuning_delay = 3.0f * CURRENT_LOOP_DT;
+    const float kp_d = motor->inductance_ld / tuning_delay;
+    const float kp_q = motor->inductance_lq / tuning_delay;
+    const float ki_continuous = motor->resistance / tuning_delay;
+    const float ki_discrete = ki_continuous * CURRENT_LOOP_DT;
 
-    foc_current_pi_init(bandwidth_rad * motor->inductance_ld,
-                        bandwidth_rad * motor->inductance_lq,
-                        bandwidth_rad * motor->resistance * CURRENT_LOOP_DT,
-                        I_I_LIMIT);
+    foc_current_pi_init(kp_d, kp_q, ki_discrete, I_I_LIMIT);
 }
 
 /**
@@ -217,36 +267,46 @@ static void foc_current_pi_init_from_motor(void)
  */
 void foc_control(void)
 {
-    const foc_runtime_config_t *config;
-    uint32_t ticks_per_ms;
-    uint32_t toggle_ticks;
-
     if (foc_mechanical_param_is_active()) {
         foc_mechanical_param_process();
         return;
     }
 
-    if ((foc_runtime_get_mode() != FOC_MODE_RUNNING) ||
-        (foc_runtime_get_profile() != FOC_RUN_POSITION_STEP)) {
+    if (foc_runtime_get_mode() != FOC_MODE_RUNNING) {
         return;
     }
 
-    config = foc_runtime_get_config();
-    ticks_per_ms = (uint32_t)POSITION_LOOP_TIME / 1000U;
-    if (ticks_per_ms == 0U) {
-        ticks_per_ms = 1U;
+    if (foc_runtime_get_profile() == FOC_RUN_SPEED) {
+        foc_speed_control(foc_ctrl.target_speed, 0.0f);
+        return;
     }
-    toggle_ticks = config->step_period_ms * ticks_per_ms;
-
-    if (++step_tick >= toggle_ticks) {
-        step_tick = 0U;
-        step_target_b ^= 1U;
-        foc_ctrl.target_position = (step_target_b != 0U)
-            ? config->step_position_b
-            : config->step_position_a;
+    if (foc_runtime_get_profile() != FOC_RUN_POSITION_STEP) {
+        return;
     }
 
-    foc_position_control(foc_ctrl.target_position);
+    if (++position_loop_tick >= POSITION_LOOP_DECIMATION) {
+        const foc_runtime_config_t *config = foc_runtime_get_config();
+        uint32_t ticks_per_ms = (uint32_t)POSITION_LOOP_TIME / 1000U;
+        uint32_t toggle_ticks;
+
+        position_loop_tick = 0U;
+        if (ticks_per_ms == 0U) {
+            ticks_per_ms = 1U;
+        }
+        toggle_ticks = config->step_period_ms * ticks_per_ms;
+
+        if (++step_tick >= toggle_ticks) {
+            step_tick = 0U;
+            step_target_b ^= 1U;
+            foc_ctrl.target_position = (step_target_b != 0U)
+                ? config->step_position_b
+                : config->step_position_a;
+        }
+
+        foc_position_control(foc_ctrl.target_position);
+    }
+
+    foc_speed_control(foc_ctrl.target_speed, foc_ctrl.shaped_t_a);
 }
 
 /**
@@ -324,6 +384,19 @@ static inline void foc_current_control(float target_d, float target_q)
 }
 
 /**
+ * @brief FOC速度闭环控制函数
+ * @param target_speed 目标机械速度，单位 rad/s
+ * @param target_acceleration 目标机械角加速度前馈，单位 rad/s^2
+ */
+static inline void foc_speed_control(float target_speed,
+                                     float target_acceleration)
+{
+    foc_ctrl.target_q =
+        speed_ladrc_update(&speed_ladrc, target_speed, target_acceleration,
+                           encoder_data.mechanical_speed);
+}
+
+/**
  * @brief FOC位置闭环控制函数
  * @param target_position 目标机械位置，单位 rad
  */
@@ -350,8 +423,26 @@ static inline void foc_position_control(float target_position)
         foc_ctrl.shaped_t_a = position_planner.current_acc;
     }
 
+    foc_position_track(planned_position, foc_ctrl.shaped_t_v,
+                       foc_ctrl.shaped_t_a);
+
+    /* 原二阶位置 LADRC 直接输出 q 轴电流的路径暂时停用。
+     * foc_ctrl.target_q = position_ladrc_update(
+     *     &position_ladrc, foc_ctrl.shaped_t_p, foc_ctrl.shaped_t_v,
+     *     foc_ctrl.shaped_t_a, encoder_data.mechanical_position);
+     */
+}
+
+static inline void foc_position_track(float planned_position,
+                                      float planned_velocity,
+                                      float planned_acceleration)
+{
+    const float position_error =
+        planned_position - encoder_data.mechanical_position;
+
     foc_ctrl.shaped_t_p = planned_position;
-    foc_ctrl.target_q = position_ladrc_update(
-        &position_ladrc, foc_ctrl.shaped_t_p, foc_ctrl.shaped_t_v,
-        foc_ctrl.shaped_t_a, encoder_data.mechanical_position);
+    foc_ctrl.shaped_t_v = planned_velocity;
+    foc_ctrl.shaped_t_a = planned_acceleration;
+    foc_ctrl.target_speed =
+        planned_velocity + POSITION_CASCADE_KP * position_error;
 }

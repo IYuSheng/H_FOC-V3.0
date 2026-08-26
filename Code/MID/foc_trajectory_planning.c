@@ -93,7 +93,12 @@ uint8_t s_curve_set_target(SCurve_Planner_t *planner, float current_pos, float t
     
     float v_peak, t_acc;
     
-    if (T2 >= 0) {
+    if (v_max_set <= 0.0f) {
+        /* 无速度上限：峰值速度仅由行程和 jerk 形成的对称轨迹决定。 */
+        T1 = cbrtf(S / j_max);
+        t_acc = 2.0f * T1;
+        v_peak = 0.5f * j_max * T1 * T1;
+    } else if (T2 >= 0) {
         /* 情况A：能达到设定速度v_max，梯形速度曲线 */
         v_peak = v_max_set;
         t_acc = 2.0f * T1 + T2;  /* T1(加加速) + T2(匀加速) + T3(减加速=T1) */

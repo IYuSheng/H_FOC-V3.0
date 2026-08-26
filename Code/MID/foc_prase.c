@@ -82,6 +82,24 @@ static uint8_t shell_require_idle(void)
 }
 
 /**
+ * @brief 检查 RAM 运行参数是否可立即应用
+ * @return 1 表示硬件已就绪且无维护任务，0 表示拒绝
+ */
+static uint8_t shell_require_runtime_update(void)
+{
+    if (foc_runtime_is_ready() == 0U) {
+        debug_log("<ERR:not ready>");
+        return 0U;
+    }
+    if ((foc_encoder_calibration_is_running() != 0U) ||
+        foc_mechanical_param_is_active()) {
+        debug_log("<ERR:maintenance busy>");
+        return 0U;
+    }
+    return 1U;
+}
+
+/**
  * @brief 输出当前模式、运行配置和电机参数
  */
 static void shell_print_status(void)
@@ -91,18 +109,30 @@ static void shell_print_status(void)
     const char *mode = (foc_runtime_get_mode() == FOC_MODE_IDLE)
         ? "IDLE"
         : "RUNNING";
-    const char *profile = (foc_runtime_get_profile() == FOC_RUN_CURRENT)
-        ? "current"
-        : "step";
+    const char *profile;
     const char *activity = (foc_encoder_calibration_is_running() != 0U)
         ? "encoder_calibration"
         : (foc_mechanical_param_is_active() ? "mech_identification" : "none");
+
+    switch (foc_runtime_get_profile()) {
+        case FOC_RUN_SPEED:
+            profile = "speed";
+            break;
+        case FOC_RUN_POSITION_STEP:
+            profile = "step";
+            break;
+        case FOC_RUN_CURRENT:
+        default:
+            profile = "current";
+            break;
+    }
 
     debug_log("<STATUS:mode=%s ready=%u profile=%s activity=%s debug=%u>", mode,
               foc_runtime_is_ready(), profile,
               activity, foc_runtime_debug_is_enabled());
     debug_log("<CURRENT:id=%.4f iq=%.4f>", config->target_id,
               config->target_iq);
+    debug_log("<SPEED:target=%.4f rad/s>", config->target_speed);
     debug_log("<STEP:a=%.4f b=%.4f period_ms=%lu>",
               config->step_position_a, config->step_position_b,
               (unsigned long)config->step_period_ms);
@@ -144,10 +174,10 @@ static void shell_print_flash(void)
  */
 static void shell_print_help(void)
 {
-    debug_log("set id <A> | set iq <A>");
+    debug_log("set id <A> | set iq <A> | set speed <rad/s>");
     debug_log("set step <pos_a_rad> <pos_b_rad> <period_ms>");
     debug_log("set motor <R_ohm> <Ld_H> <Lq_H> <flux_Wb>");
-    debug_log("run | step start | debug on|off");
+    debug_log("set commands apply immediately | debug on|off");
     debug_log("calib encoder | identify mech | flash show");
     debug_log("status | reboot | help");
 }
@@ -244,39 +274,12 @@ void parse_received_data(char *data, uint8_t len)
         return;
     }
 
-    if ((token_count == 1U) && (strcmp(tokens[0], "run") == 0)) {
-        if (shell_require_idle() == 0U) {
-            return;
-        }
-        if (foc_control_start(FOC_RUN_CURRENT) != 0U) {
-            debug_log("<OK:RUNNING current>");
-        }
-        else {
-            debug_log("<ERR:not ready or calibration busy>");
-        }
-        return;
-    }
-
-    if ((token_count == 2U) && (strcmp(tokens[0], "step") == 0) &&
-        (strcmp(tokens[1], "start") == 0)) {
-        if (shell_require_idle() == 0U) {
-            return;
-        }
-        if (foc_control_start(FOC_RUN_POSITION_STEP) != 0U) {
-            debug_log("<OK:RUNNING step>");
-        }
-        else {
-            debug_log("<ERR:not ready or calibration busy>");
-        }
-        return;
-    }
-
     if ((token_count == 3U) && (strcmp(tokens[0], "set") == 0) &&
         ((strcmp(tokens[1], "id") == 0) ||
          (strcmp(tokens[1], "iq") == 0))) {
         float value;
 
-        if (shell_require_idle() == 0U) {
+        if (shell_require_runtime_update() == 0U) {
             return;
         }
         if ((parse_float_token(tokens[2], &value) == 0U) ||
@@ -287,12 +290,22 @@ void parse_received_data(char *data, uint8_t len)
         }
 
         if (strcmp(tokens[1], "id") == 0) {
-            (void)foc_runtime_set_id(value);
-            debug_log("<OK:set id %.4f>", value);
+            if (foc_runtime_set_id(value) != 0U) {
+                foc_ctrl.target_d = value;
+                debug_log("<OK:set id %.4f>", value);
+            }
+            else {
+                debug_log("<ERR:set id failed>");
+            }
         }
         else {
-            (void)foc_runtime_set_iq(value);
-            debug_log("<OK:set iq %.4f>", value);
+            if ((foc_runtime_set_iq(value) != 0U) &&
+                (foc_control_start(FOC_RUN_CURRENT) != 0U)) {
+                debug_log("<OK:RUNNING current iq=%.4f>", value);
+            }
+            else {
+                debug_log("<ERR:set iq failed>");
+            }
         }
         return;
     }
@@ -303,7 +316,7 @@ void parse_received_data(char *data, uint8_t len)
         float position_b;
         uint32_t period_ms;
 
-        if (shell_require_idle() == 0U) {
+        if (shell_require_runtime_update() == 0U) {
             return;
         }
         if ((parse_float_token(tokens[2], &position_a) == 0U) ||
@@ -314,9 +327,36 @@ void parse_received_data(char *data, uint8_t len)
             return;
         }
 
-        (void)foc_runtime_set_step(position_a, position_b, period_ms);
-        debug_log("<OK:set step %.4f %.4f %lu>", position_a, position_b,
-                  (unsigned long)period_ms);
+        if ((foc_runtime_set_step(position_a, position_b, period_ms) != 0U) &&
+            (foc_control_start(FOC_RUN_POSITION_STEP) != 0U)) {
+            debug_log("<OK:RUNNING step %.4f %.4f %lu>", position_a,
+                      position_b, (unsigned long)period_ms);
+        }
+        else {
+            debug_log("<ERR:set step failed>");
+        }
+        return;
+    }
+
+    if ((token_count == 3U) && (strcmp(tokens[0], "set") == 0) &&
+        (strcmp(tokens[1], "speed") == 0)) {
+        float target_speed;
+
+        if (shell_require_runtime_update() == 0U) {
+            return;
+        }
+        if (parse_float_token(tokens[2], &target_speed) == 0U) {
+            debug_log("<ERR:value>");
+            return;
+        }
+
+        if ((foc_runtime_set_speed(target_speed) != 0U) &&
+            (foc_control_start(FOC_RUN_SPEED) != 0U)) {
+            debug_log("<OK:RUNNING speed=%.4f>", target_speed);
+        }
+        else {
+            debug_log("<ERR:set speed failed>");
+        }
         return;
     }
 
