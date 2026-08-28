@@ -3,6 +3,9 @@
 #include <math.h>
 
 #define POSITION_LOOP_DECIMATION 5U
+#define SWEEP_RETURN_MAX_VELOCITY_RAD_S 2.0f
+#define SWEEP_RETURN_MAX_ACCELERATION_RAD_S2 10.0f
+#define SWEEP_RETURN_MAX_JERK_RAD_S3 50.0f
 
 static SCurve_Planner_t position_planner;
 // static PositionLadrc_t position_ladrc;
@@ -12,6 +15,8 @@ static uint8_t step_target_b;
 static uint8_t position_plan_valid;
 static uint8_t position_loop_tick;
 static float position_last_target;
+static uint8_t sweep_return_control_active;
+static uint8_t mechanical_return_control_active;
 
 /**
  * @brief 使用当前电机参数初始化电流环 PI
@@ -57,7 +62,8 @@ static inline void foc_position_track(float planned_position,
 void foc_debug(void)
 {
     if ((foc_runtime_debug_is_enabled() == 0U) ||
-        (foc_encoder_calibration_is_running() != 0U)) {
+        (foc_encoder_calibration_is_running() != 0U) ||
+        foc_frequency_sweep_is_active() || foc_mechanical_param_is_active()) {
         return;
     }
 
@@ -129,7 +135,8 @@ uint8_t foc_control_start(foc_run_profile_t profile)
 
     if ((foc_runtime_is_ready() == 0U) ||
         (foc_encoder_calibration_is_running() != 0U) ||
-        foc_mechanical_param_is_active()) {
+        foc_mechanical_param_is_active() ||
+        foc_frequency_sweep_is_active()) {
         return 0U;
     }
 
@@ -174,6 +181,7 @@ uint8_t foc_control_start(foc_run_profile_t profile)
     step_target_b = 0U;
     position_plan_valid = 0U;
     position_loop_tick = POSITION_LOOP_DECIMATION - 1U;
+    sweep_return_control_active = 0U;
 
     started = foc_runtime_start(profile);
     if (primask == 0U) {
@@ -188,20 +196,79 @@ uint8_t foc_control_start(foc_run_profile_t profile)
  */
 uint8_t foc_control_start_mechanical_identification(void)
 {
+    uint32_t primask;
+
     if ((foc_runtime_is_ready() == 0U) ||
         (foc_runtime_get_mode() != FOC_MODE_IDLE) ||
         (foc_encoder_calibration_is_running() != 0U) ||
-        foc_mechanical_param_is_active()) {
+        foc_mechanical_param_is_active() ||
+        foc_frequency_sweep_is_active()) {
         return 0U;
     }
 
+    primask = __get_PRIMASK();
+    __disable_irq();
     foc_current_pi_init_from_motor();
+    speed_ladrc_reset(&speed_ladrc, encoder_data.mechanical_speed);
+    s_curve_planner_init(&position_planner, FOC_S_CURVE_MAX_VELOCITY,
+                         FOC_S_CURVE_MAX_ACCELERATION,
+                         FOC_S_CURVE_MAX_JERK, POSITION_LOOP_DT);
     foc_ctrl.target_d = 0.0f;
     foc_ctrl.target_q = 0.0f;
     foc_ctrl.out_d = 0.0f;
     foc_ctrl.out_q = 0.0f;
+    foc_ctrl.target_speed = 0.0f;
+    foc_ctrl.shaped_t_p = encoder_data.mechanical_position;
+    foc_ctrl.shaped_t_v = 0.0f;
+    foc_ctrl.shaped_t_a = 0.0f;
+    position_plan_valid = 0U;
+    position_loop_tick = POSITION_LOOP_DECIMATION - 1U;
+    mechanical_return_control_active = 0U;
     foc_mechanical_param_start();
+    if (primask == 0U) {
+        __enable_irq();
+    }
     return 1U;
+}
+
+/**
+ * @brief 从当前机械位置启动逐频正弦扫频
+ * @return 1 表示启动成功，0 表示当前状态不允许
+ */
+uint8_t foc_control_start_frequency_sweep(void)
+{
+    uint32_t primask;
+    uint8_t started;
+
+    if ((foc_runtime_is_ready() == 0U) ||
+        (foc_runtime_get_mode() != FOC_MODE_IDLE) ||
+        (foc_encoder_calibration_is_running() != 0U) ||
+        foc_mechanical_param_is_active() ||
+        foc_frequency_sweep_is_active()) {
+        return 0U;
+    }
+
+    primask = __get_PRIMASK();
+    __disable_irq();
+    foc_current_pi_init_from_motor();
+    speed_ladrc_reset(&speed_ladrc, encoder_data.mechanical_speed);
+    s_curve_planner_init(&position_planner, FOC_S_CURVE_MAX_VELOCITY,
+                         FOC_S_CURVE_MAX_ACCELERATION, FOC_S_CURVE_MAX_JERK,
+                         POSITION_LOOP_DT);
+    foc_ctrl.target_d = 0.0f;
+    foc_ctrl.target_q = 0.0f;
+    foc_ctrl.target_speed = 0.0f;
+    foc_ctrl.shaped_t_p = encoder_data.mechanical_position;
+    foc_ctrl.shaped_t_v = 0.0f;
+    foc_ctrl.shaped_t_a = 0.0f;
+    position_plan_valid = 0U;
+    position_loop_tick = POSITION_LOOP_DECIMATION - 1U;
+    sweep_return_control_active = 0U;
+    started = foc_frequency_sweep_start();
+    if (primask == 0U) {
+        __enable_irq();
+    }
+    return started;
 }
 
 /**
@@ -213,26 +280,56 @@ void foc_control_background_process(void)
     float ka;
     float kv;
     float tc;
+    float weighted_rms;
+    float low_rms;
+    float high_rms;
+    float median_gain_std;
+    float median_phase_std;
+    float ka_high_band;
+    uint16_t point_count;
+    uint8_t error_code;
     uint8_t result_valid;
 
-    if (g_mech_identify.state == MECH_IDENTIFY_FAILED) {
-        foc_mechanical_param_stop();
-        foc_output_idle();
-        debug_log("<ERR:identify mech failed>");
+    if (foc_frequency_sweep_is_active()) {
+        foc_frequency_sweep_background_process();
         return;
     }
-    if (g_mech_identify.state != MECH_IDENTIFY_COMPLETE) {
+
+    if (foc_mechanical_param_is_active()) {
+        foc_mechanical_param_background_process();
+    }
+
+    if (foc_mechanical_param_get_state() == MECH_IDENTIFY_FAILED) {
+        result = foc_mechanical_param_get_result();
+        error_code = result->error_code;
+        foc_mechanical_param_stop();
+        foc_output_idle();
+        debug_log("<ERR:identify mech failed code=%u>",
+                  (unsigned int)error_code);
+        return;
+    }
+    if (foc_mechanical_param_get_state() != MECH_IDENTIFY_COMPLETE) {
         return;
     }
 
     result = foc_mechanical_param_get_result();
     ka = result->Ka;
     kv = result->Kv;
-    tc = fabsf(result->Tc);
+    tc = result->Tc;
+    ka_high_band = result->Ka_high_band;
+    weighted_rms = result->weighted_rms_percent;
+    low_rms = result->low_band_rms_percent;
+    high_rms = result->high_band_rms_percent;
+    median_gain_std = result->median_gain_std_percent;
+    median_phase_std = result->median_phase_std_deg;
+    point_count = result->point_count;
+    error_code = result->error_code;
     result_valid =
         ((result->valid != false) && isfinite(ka) && isfinite(kv) &&
-         isfinite(tc) && (ka > 0.0f) && (ka <= 100.0f) && (kv >= 0.0f) &&
-         (kv <= 100.0f) && (tc >= 0.0f) && (tc <= 100.0f))
+         isfinite(tc) && isfinite(weighted_rms) && (ka > 0.0f) &&
+         (ka <= 0.1f) && (kv >= 0.0f) && (kv <= 1.0f) &&
+         (tc >= 0.0f) && (tc <= 0.2f) && (weighted_rms <= 30.0f) &&
+         (point_count == 27U) && (error_code == 0U))
         ? 1U
         : 0U;
     foc_mechanical_param_stop();
@@ -242,6 +339,9 @@ void foc_control_background_process(void)
         debug_log("<ERR:identify mech result invalid>");
     }
     else if (foc_runtime_set_mechanical(ka, kv, tc) != 0U) {
+        debug_log("<IDENTIFY_MECH:points=%u Ka_high=%.9f rms=%.2f low=%.2f high=%.2f gain_std=%.3f phase_std=%.3f>",
+                  (unsigned int)point_count, ka_high_band, weighted_rms,
+                  low_rms, high_rms, median_gain_std, median_phase_std);
         debug_log("<OK:identify mech saved Ka=%.9f Kv=%.9f Tc=%.9f>", ka, kv,
                   tc);
     }
@@ -267,10 +367,88 @@ static void foc_current_pi_init_from_motor(void)
  */
 void foc_control(void)
 {
-    if (foc_mechanical_param_is_active()) {
-        foc_mechanical_param_process();
+    if (foc_frequency_sweep_is_active()) {
+        const uint8_t returning = foc_frequency_sweep_is_returning()
+            ? 1U
+            : 0U;
+
+        foc_frequency_sweep_control_tick();
+        if (returning != 0U) {
+            if (sweep_return_control_active == 0U) {
+                speed_ladrc_reset(&speed_ladrc,
+                                  encoder_data.mechanical_speed);
+                s_curve_planner_init(&position_planner,
+                                     SWEEP_RETURN_MAX_VELOCITY_RAD_S,
+                                     SWEEP_RETURN_MAX_ACCELERATION_RAD_S2,
+                                     SWEEP_RETURN_MAX_JERK_RAD_S3,
+                                     POSITION_LOOP_DT);
+                foc_ctrl.target_position =
+                    foc_frequency_sweep_get_start_position();
+                foc_ctrl.shaped_t_p = encoder_data.mechanical_position;
+                foc_ctrl.shaped_t_v = 0.0f;
+                foc_ctrl.shaped_t_a = 0.0f;
+                position_plan_valid = 0U;
+                position_loop_tick = POSITION_LOOP_DECIMATION - 1U;
+                sweep_return_control_active = 1U;
+            }
+
+            if (++position_loop_tick >= POSITION_LOOP_DECIMATION) {
+                position_loop_tick = 0U;
+                foc_position_control(
+                    foc_frequency_sweep_get_start_position());
+            }
+            foc_speed_control(foc_ctrl.target_speed, foc_ctrl.shaped_t_a);
+            foc_frequency_sweep_return_feedback_tick(
+                encoder_data.mechanical_position,
+                encoder_data.mechanical_speed);
+        }
+        else {
+            sweep_return_control_active = 0U;
+        }
         return;
     }
+
+    if (foc_mechanical_param_is_active()) {
+        const uint8_t returning = foc_mechanical_param_is_returning()
+            ? 1U
+            : 0U;
+
+        foc_mechanical_param_process();
+        if (returning != 0U) {
+            if (mechanical_return_control_active == 0U) {
+                speed_ladrc_reset(&speed_ladrc,
+                                  encoder_data.mechanical_speed);
+                s_curve_planner_init(&position_planner,
+                                     SWEEP_RETURN_MAX_VELOCITY_RAD_S,
+                                     SWEEP_RETURN_MAX_ACCELERATION_RAD_S2,
+                                     SWEEP_RETURN_MAX_JERK_RAD_S3,
+                                     POSITION_LOOP_DT);
+                foc_ctrl.target_position =
+                    foc_mechanical_param_get_start_position();
+                foc_ctrl.shaped_t_p = encoder_data.mechanical_position;
+                foc_ctrl.shaped_t_v = 0.0f;
+                foc_ctrl.shaped_t_a = 0.0f;
+                position_plan_valid = 0U;
+                position_loop_tick = POSITION_LOOP_DECIMATION - 1U;
+                mechanical_return_control_active = 1U;
+            }
+
+            if (++position_loop_tick >= POSITION_LOOP_DECIMATION) {
+                position_loop_tick = 0U;
+                foc_position_control(
+                    foc_mechanical_param_get_start_position());
+            }
+            foc_speed_control(foc_ctrl.target_speed, foc_ctrl.shaped_t_a);
+            foc_mechanical_param_return_feedback_tick(
+                encoder_data.mechanical_position,
+                encoder_data.mechanical_speed);
+        }
+        else {
+            mechanical_return_control_active = 0U;
+        }
+        return;
+    }
+    mechanical_return_control_active = 0U;
 
     if (foc_runtime_get_mode() != FOC_MODE_RUNNING) {
         return;
@@ -319,7 +497,8 @@ void foc_current_in_control(void)
         return;
     }
 
-    if (foc_mechanical_param_is_active()) {
+    if (foc_frequency_sweep_is_active() ||
+        foc_mechanical_param_is_active()) {
         foc_current_control(foc_ctrl.target_d, foc_ctrl.target_q);
         return;
     }

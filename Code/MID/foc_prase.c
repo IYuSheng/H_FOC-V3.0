@@ -8,6 +8,7 @@
 #include "Config.h"
 #include "foc_control.h"
 #include "foc_encoder_calibration.h"
+#include "foc_frequency_sweep.h"
 #include "foc_mechanical_param.h"
 #include "foc_runtime.h"
 #include "stm32g4xx.h"
@@ -74,7 +75,7 @@ static uint8_t shell_require_idle(void)
         return 0U;
     }
     if ((foc_encoder_calibration_is_running() != 0U) ||
-        foc_mechanical_param_is_active()) {
+        foc_mechanical_param_is_active() || foc_frequency_sweep_is_active()) {
         debug_log("<ERR:maintenance busy>");
         return 0U;
     }
@@ -92,7 +93,7 @@ static uint8_t shell_require_runtime_update(void)
         return 0U;
     }
     if ((foc_encoder_calibration_is_running() != 0U) ||
-        foc_mechanical_param_is_active()) {
+        foc_mechanical_param_is_active() || foc_frequency_sweep_is_active()) {
         debug_log("<ERR:maintenance busy>");
         return 0U;
     }
@@ -112,7 +113,10 @@ static void shell_print_status(void)
     const char *profile;
     const char *activity = (foc_encoder_calibration_is_running() != 0U)
         ? "encoder_calibration"
-        : (foc_mechanical_param_is_active() ? "mech_identification" : "none");
+        : (foc_mechanical_param_is_active()
+               ? "mech_identification"
+               : (foc_frequency_sweep_is_active() ? "frequency_sweep"
+                                                  : "none"));
 
     switch (foc_runtime_get_profile()) {
         case FOC_RUN_SPEED:
@@ -178,7 +182,8 @@ static void shell_print_help(void)
     debug_log("set step <pos_a_rad> <pos_b_rad> <period_ms>");
     debug_log("set motor <R_ohm> <Ld_H> <Lq_H> <flux_Wb>");
     debug_log("set commands apply immediately | debug on|off");
-    debug_log("calib encoder | identify mech | flash show");
+    debug_log("calib encoder | identify mech | sweep start|stop|status");
+    debug_log("flash show");
     debug_log("status | reboot | help");
 }
 
@@ -243,6 +248,45 @@ void parse_received_data(char *data, uint8_t len)
         return;
     }
 
+    if ((token_count == 2U) && (strcmp(tokens[0], "sweep") == 0)) {
+        if (strcmp(tokens[1], "stop") == 0) {
+            if (foc_frequency_sweep_is_active()) {
+                foc_frequency_sweep_stop();
+                debug_log("<OK:sweep stopped>");
+            }
+            else {
+                debug_log("<ERR:sweep not active>");
+            }
+            return;
+        }
+        if (strcmp(tokens[1], "status") == 0) {
+            foc_sweep_status_t sweep_status;
+
+            foc_frequency_sweep_get_status(&sweep_status);
+            debug_log("<SWEEP_STATUS:%s,index=%u,error=%.6f,speed=%.6f,return_ms=%lu>",
+                      foc_frequency_sweep_get_state_name(),
+                      (unsigned int)sweep_status.frequency_index,
+                      sweep_status.position_error, sweep_status.speed,
+                      (unsigned long)sweep_status.return_elapsed_ms);
+            return;
+        }
+        if (strcmp(tokens[1], "start") == 0) {
+            if (shell_require_idle() == 0U) {
+                return;
+            }
+            foc_runtime_set_debug(0U);
+            if (foc_control_start_frequency_sweep() != 0U) {
+                debug_log("index,frequency_hz,iq_amplitude_a,position_amplitude_rad,gain_rad_per_a,phase_deg,window_count,gain_std_percent,phase_std_deg");
+            }
+            else {
+                debug_log("<ERR:sweep start failed>");
+            }
+            return;
+        }
+        debug_log("<ERR:args>");
+        return;
+    }
+
     if ((token_count == 2U) && (strcmp(tokens[0], "calib") == 0) &&
         (strcmp(tokens[1], "encoder") == 0)) {
         if (shell_require_idle() == 0U) {
@@ -265,6 +309,7 @@ void parse_received_data(char *data, uint8_t len)
         if (shell_require_idle() == 0U) {
             return;
         }
+        foc_runtime_set_debug(0U);
         if (foc_control_start_mechanical_identification() != 0U) {
             debug_log("<OK:identify mech started>");
         }

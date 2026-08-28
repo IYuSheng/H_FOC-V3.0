@@ -42,7 +42,7 @@
 #define SPEED_I_LIMIT   0.2f
 #define SPEED_OUT_LIMIT    3.0f
 #define SPEED_LADRC_CONTROL_BANDWIDTH 120.0f  // wc, rad/s
-#define SPEED_LESO_BANDWIDTH          350.0f  // wo, rad/s
+#define SPEED_LESO_BANDWIDTH          400.0f  // wo, rad/s
 #define SPEED_LADRC_B0                1264.0f // rad/s^2/A
 #define SPEED_LADRC_OUT_MIN           (-SPEED_OUT_LIMIT)
 #define SPEED_LADRC_OUT_MAX           SPEED_OUT_LIMIT

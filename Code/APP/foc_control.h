@@ -8,6 +8,7 @@
 #include "foc_conversion.h"
 #include "foc_encoder.h"
 #include "foc_encoder_calibration.h"
+#include "foc_frequency_sweep.h"
 #include "foc_ladrc.h"
 #include "foc_mechanical_param.h"
 #include "foc_runtime.h"
@@ -23,6 +24,7 @@
 void foc_start_init(void);
 uint8_t foc_control_start(foc_run_profile_t profile);
 uint8_t foc_control_start_mechanical_identification(void);
+uint8_t foc_control_start_frequency_sweep(void);
 void foc_control_background_process(void);
 void foc_current_in_control(void);
 void foc_control(void);

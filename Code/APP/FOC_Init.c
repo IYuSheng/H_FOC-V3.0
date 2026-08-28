@@ -21,6 +21,7 @@ void FOC_Init(void)
   foc_runtime_init();
   foc_encoder_calibration_init();
   foc_mechanical_param_init();
+  foc_frequency_sweep_init();
 }
 
 void foc_start(void)

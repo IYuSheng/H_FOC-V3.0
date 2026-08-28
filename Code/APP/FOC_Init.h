@@ -28,6 +28,7 @@
 #include "gpio.h"
 #include "foc_encoder.h"
 #include "foc_encoder_calibration.h"
+#include "foc_frequency_sweep.h"
 #include "foc_mechanical_param.h"
 #include "foc_runtime.h"
 #include "foc_sys.h"

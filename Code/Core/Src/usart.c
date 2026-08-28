@@ -25,16 +25,25 @@
 #include "foc_prase.h"
 
 #define UART_TX_BUFFER_SIZE      512U
+#define UART_TX_QUEUE_SIZE       2048U
+#define UART_TX_QUEUE_MASK       (UART_TX_QUEUE_SIZE - 1U)
 #define UART_RX_LINE_SIZE        96U
 #define UART_RX_DMA_BUFFER_SIZE  128U
 #define UART_RX_RING_SIZE        256U
 #define UART_RX_RING_MASK        (UART_RX_RING_SIZE - 1U)
 #define UART_RX_DMA_CHANNEL      LL_DMA_CHANNEL_1
+#define UART_TX_DMA_CHANNEL      LL_DMA_CHANNEL_3
+#define UART_TX_WAIT_TIMEOUT_MS  100U
 
 static char d_buffer[UART_TX_BUFFER_SIZE];
+static uint8_t tx_queue[UART_TX_QUEUE_SIZE];
 static uint8_t rx_dma_buffer[UART_RX_DMA_BUFFER_SIZE];
 static uint8_t rx_ring_buffer[UART_RX_RING_SIZE];
 static char rx_line_buffer[UART_RX_LINE_SIZE];
+static volatile uint16_t tx_queue_head = 0U;
+static volatile uint16_t tx_queue_tail = 0U;
+static volatile uint16_t tx_dma_length = 0U;
+static volatile uint8_t tx_dma_active = 0U;
 static volatile uint16_t rx_ring_head = 0U;
 static volatile uint16_t rx_ring_tail = 0U;
 static volatile uint8_t rx_error_pending = 0U;
@@ -43,6 +52,83 @@ static uint8_t rx_line_discarding = 0U;
 
 _Static_assert((UART_RX_RING_SIZE & (UART_RX_RING_SIZE - 1U)) == 0U,
                "UART RX ring size must be a power of two");
+_Static_assert((UART_TX_QUEUE_SIZE & (UART_TX_QUEUE_SIZE - 1U)) == 0U,
+               "UART TX queue size must be a power of two");
+
+static void bsp_uart_tx_dma_start(void)
+{
+    uint16_t length;
+
+    if ((tx_dma_active != 0U) || (tx_queue_tail == tx_queue_head)) {
+        return;
+    }
+
+    if (tx_queue_head > tx_queue_tail) {
+        length = (uint16_t)(tx_queue_head - tx_queue_tail);
+    }
+    else {
+        length = (uint16_t)(UART_TX_QUEUE_SIZE - tx_queue_tail);
+    }
+
+    LL_DMA_DisableChannel(DMA1, UART_TX_DMA_CHANNEL);
+    while (LL_DMA_IsEnabledChannel(DMA1, UART_TX_DMA_CHANNEL)) {
+    }
+
+    LL_DMA_ClearFlag_GI3(DMA1);
+    LL_DMA_SetMemoryAddress(DMA1, UART_TX_DMA_CHANNEL,
+                            (uint32_t)&tx_queue[tx_queue_tail]);
+    LL_DMA_SetDataLength(DMA1, UART_TX_DMA_CHANNEL, length);
+    tx_dma_length = length;
+    tx_dma_active = 1U;
+    LL_DMA_EnableChannel(DMA1, UART_TX_DMA_CHANNEL);
+}
+
+static uint8_t bsp_uart_tx_enqueue(const uint8_t *buffer, uint16_t length)
+{
+    uint32_t primask;
+    uint16_t head;
+    uint16_t tail;
+    uint16_t used;
+    uint16_t first_length;
+
+    if ((buffer == NULL) || (length == 0U)) {
+        return 0U;
+    }
+
+    primask = __get_PRIMASK();
+    __disable_irq();
+    head = tx_queue_head;
+    tail = tx_queue_tail;
+    if (primask == 0U) {
+        __enable_irq();
+    }
+
+    used = (uint16_t)((head - tail) & UART_TX_QUEUE_MASK);
+    if (length > (uint16_t)((UART_TX_QUEUE_SIZE - 1U) - used)) {
+        return 0U;
+    }
+
+    first_length = (uint16_t)(UART_TX_QUEUE_SIZE - head);
+    if (first_length > length) {
+        first_length = length;
+    }
+
+    memcpy(&tx_queue[head], buffer, first_length);
+    if (length > first_length) {
+        memcpy(tx_queue, &buffer[first_length],
+               (uint16_t)(length - first_length));
+    }
+
+    primask = __get_PRIMASK();
+    __disable_irq();
+    __DMB();
+    tx_queue_head = (uint16_t)((head + length) & UART_TX_QUEUE_MASK);
+    bsp_uart_tx_dma_start();
+    if (primask == 0U) {
+        __enable_irq();
+    }
+    return 1U;
+}
 
 static void bsp_uart_rx_dma_restart(void)
 {
@@ -136,6 +222,23 @@ void MX_USART3_UART_Init(void)
   DMA_InitStruct.MemoryOrM2MDstAddress = (uint32_t)rx_dma_buffer;
   LL_DMA_Init(DMA1, UART_RX_DMA_CHANNEL, &DMA_InitStruct);
 
+  DMA_InitStruct.PeriphRequest = LL_DMAMUX_REQ_USART3_TX;
+  DMA_InitStruct.Direction = LL_DMA_DIRECTION_MEMORY_TO_PERIPH;
+  DMA_InitStruct.Mode = LL_DMA_MODE_NORMAL;
+  DMA_InitStruct.PeriphOrM2MSrcIncMode = LL_DMA_PERIPH_NOINCREMENT;
+  DMA_InitStruct.MemoryOrM2MDstIncMode = LL_DMA_MEMORY_INCREMENT;
+  DMA_InitStruct.PeriphOrM2MSrcDataSize = LL_DMA_PDATAALIGN_BYTE;
+  DMA_InitStruct.MemoryOrM2MDstDataSize = LL_DMA_MDATAALIGN_BYTE;
+  DMA_InitStruct.Priority = LL_DMA_PRIORITY_LOW;
+  DMA_InitStruct.NbData = 1U;
+  DMA_InitStruct.PeriphOrM2MSrcAddress =
+      LL_USART_DMA_GetRegAddr(USART3, LL_USART_DMA_REG_DATA_TRANSMIT);
+  DMA_InitStruct.MemoryOrM2MDstAddress = (uint32_t)tx_queue;
+  LL_DMA_Init(DMA1, UART_TX_DMA_CHANNEL, &DMA_InitStruct);
+  LL_DMA_DisableIT_HT(DMA1, UART_TX_DMA_CHANNEL);
+  LL_DMA_EnableIT_TC(DMA1, UART_TX_DMA_CHANNEL);
+  LL_DMA_EnableIT_TE(DMA1, UART_TX_DMA_CHANNEL);
+
   GPIO_InitStruct.Pin = LL_GPIO_PIN_11;
   GPIO_InitStruct.Mode = LL_GPIO_MODE_ALTERNATE;
   GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_VERY_HIGH;
@@ -178,10 +281,13 @@ void MX_USART3_UART_Init(void)
   // 设置中断优先级
   NVIC_SetPriority(USART3_IRQn, 4); // 使用较低的优先级值
   NVIC_EnableIRQ(USART3_IRQn);
+  NVIC_SetPriority(DMA1_Channel3_IRQn, 4);
+  NVIC_EnableIRQ(DMA1_Channel3_IRQn);
 
-  // DMA接收一批字符，串口空闲中断负责转存到软件环形缓冲。
+  // DMA发送使用软件环形队列，DMA接收由空闲中断转存到软件环形缓冲。
   LL_USART_ClearFlag_IDLE(USART3);
   bsp_uart_rx_dma_restart();
+  LL_USART_EnableDMAReq_TX(USART3);
   LL_USART_EnableDMAReq_RX(USART3);
   LL_USART_EnableIT_IDLE(USART3);
   LL_USART_EnableIT_ERROR(USART3);
@@ -192,44 +298,22 @@ void MX_USART3_UART_Init(void)
 }
 
 /**
- * @brief UART3发送一个字节（阻塞方式）
- * @param data 要发送的数据
- */
-static void bsp_uart_send_byte(uint8_t data)
-{
-  // 带超时的等待（避免硬件异常导致永久阻塞）
-  uint32_t timeout = 0xFFFF;
-  while ((!(LL_USART_IsActiveFlag_TXE(USART3))) && (timeout-- > 0));
-  if (timeout > 0)
-    {
-      LL_USART_TransmitData8(USART3, data);
-    }
-}
-
-/**
- * @brief UART3发送字符串（阻塞方式）
+ * @brief UART3使用DMA异步发送字符串
  * @param str 要发送的字符串
  */
 void bsp_uart_send_string(char *str)
 {
-  while (*str)
-    {
-      bsp_uart_send_byte(*str++);
-    }
-}
+    size_t length;
 
-/**
- * @brief UART3发送缓冲区数据（阻塞方式）
- * @param buffer 数据缓冲区
- * @param len 数据长度
- */
-static inline void bsp_uart_send_buffer(uint8_t *buffer, uint16_t len)
-{
-  uint16_t i;
-  for (i = 0; i < len; i++)
-    {
-      bsp_uart_send_byte(buffer[i]);
+    if (str == NULL) {
+        return;
+  }
+
+    length = strlen(str);
+    if (length > UINT16_MAX) {
+        length = UINT16_MAX;
     }
+    (void)bsp_uart_tx_enqueue((const uint8_t *)str, (uint16_t)length);
 }
 
 /**
@@ -242,18 +326,15 @@ void debug_log(const char *format, ...)
   va_list args;
   int len;
 
-  // 格式化字符串
   va_start(args, format);
   len = vsnprintf(d_buffer, sizeof(d_buffer), format, args);
   va_end(args);
 
-  // 确保不会超出缓冲区范围
   if (len > sizeof(d_buffer) - 3)
     {
       len = sizeof(d_buffer) - 3;
     }
 
-  // 添加\r\n确保换行
   if (len > 0)
     {
       d_buffer[len++] = '\r';
@@ -263,7 +344,7 @@ void debug_log(const char *format, ...)
 
   if (len > 0)
     {
-      bsp_uart_send_buffer((uint8_t*)d_buffer, (uint16_t)len);
+      (void)bsp_uart_tx_enqueue((const uint8_t *)d_buffer, (uint16_t)len);
     }
 }
 
@@ -272,10 +353,13 @@ void debug_log(const char *format, ...)
  */
 void bsp_uart_wait_tx_complete(void)
 {
-  uint32_t timeout = 0xFFFFFU;
+    uint32_t start_tick = HAL_GetTick();
 
-  while ((!LL_USART_IsActiveFlag_TC(USART3)) && (timeout-- > 0U))
-    {
+    while ((tx_queue_tail != tx_queue_head) || (tx_dma_active != 0U) ||
+           (!LL_USART_IsActiveFlag_TC(USART3))) {
+        if ((HAL_GetTick() - start_tick) >= UART_TX_WAIT_TIMEOUT_MS) {
+            break;
+        }
     }
 }
 
@@ -374,5 +458,30 @@ void USART3_IRQHandler(void)
             bsp_uart_rx_ring_write(rx_dma_buffer, received);
         }
         bsp_uart_rx_dma_restart();
+    }
+}
+
+/**
+ * @brief USART3 TX DMA完成和错误中断
+ */
+void DMA1_Channel3_IRQHandler(void)
+{
+    if (LL_DMA_IsActiveFlag_TE3(DMA1)) {
+        LL_DMA_DisableChannel(DMA1, UART_TX_DMA_CHANNEL);
+        LL_DMA_ClearFlag_GI3(DMA1);
+        tx_queue_tail = tx_queue_head;
+        tx_dma_length = 0U;
+        tx_dma_active = 0U;
+        return;
+    }
+
+    if (LL_DMA_IsActiveFlag_TC3(DMA1)) {
+        LL_DMA_DisableChannel(DMA1, UART_TX_DMA_CHANNEL);
+        LL_DMA_ClearFlag_GI3(DMA1);
+        tx_queue_tail =
+            (uint16_t)((tx_queue_tail + tx_dma_length) & UART_TX_QUEUE_MASK);
+        tx_dma_length = 0U;
+        tx_dma_active = 0U;
+        bsp_uart_tx_dma_start();
     }
 }

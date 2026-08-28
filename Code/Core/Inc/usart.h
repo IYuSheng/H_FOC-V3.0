@@ -37,6 +37,7 @@ extern "C" {
 /* USER CODE END Private defines */
 
 void MX_USART3_UART_Init(void);
+void bsp_uart_send_string(char *str);
 void debug_log(const char *format, ...);
 void bsp_uart_process_rx(void);
 void bsp_uart_wait_tx_complete(void);

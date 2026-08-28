@@ -53,6 +53,11 @@ add_compile_definitions(
     USE_HAL_DRIVER
     STM32G431xx
     ARM_MATH_CM4
+    ARM_DSP_CONFIG_TABLES
+    ARM_FFT_ALLOW_TABLES
+    ARM_TABLE_TWIDDLECOEF_F32_512
+    ARM_TABLE_BITREVIDX_FLT_512
+    ARM_TABLE_TWIDDLECOEF_RFFT_F32_1024
 )
 
 # ── Include Paths ──────────────────────────────────────────────
@@ -64,6 +69,7 @@ include_directories(
     Code/Drivers/STM32G4xx_HAL_Driver/Inc/Legacy
     Code/Drivers/CMSIS/Device/ST/STM32G4xx/Include
     Code/Drivers/CMSIS/Core/Include
+    Code/Drivers/CMSIS/DSP/Include
 )
 
 # ── APP Sources ────────────────────────────────────────────────
@@ -115,6 +121,15 @@ set(HAL_SOURCES
     Code/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_ll_utils.c
 )
 
+set(CMSIS_DSP_SOURCES
+    Code/Drivers/CMSIS/DSP/Source/CommonTables/arm_common_tables.c
+    Code/Drivers/CMSIS/DSP/Source/TransformFunctions/arm_bitreversal2.c
+    Code/Drivers/CMSIS/DSP/Source/TransformFunctions/arm_cfft_f32.c
+    Code/Drivers/CMSIS/DSP/Source/TransformFunctions/arm_cfft_radix8_f32.c
+    Code/Drivers/CMSIS/DSP/Source/TransformFunctions/arm_rfft_fast_f32.c
+    Code/Drivers/CMSIS/DSP/Source/TransformFunctions/arm_rfft_fast_init_f32.c
+)
+
 # ── Startup ────────────────────────────────────────────────────
 set(STARTUP_SOURCE
     Code/Drivers/CMSIS/Device/ST/STM32G4xx/Source/Templates/gcc/startup_stm32g431xx.s
@@ -126,6 +141,7 @@ add_executable(${CMAKE_PROJECT_NAME}
     ${MID_SOURCES}
     ${CORE_SOURCES}
     ${HAL_SOURCES}
+    ${CMSIS_DSP_SOURCES}
     ${STARTUP_SOURCE}
 )
 
