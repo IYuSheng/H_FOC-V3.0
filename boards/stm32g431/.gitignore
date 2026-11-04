@@ -1,0 +1,7 @@
+# Board-local generated files
+/.vscode/
+/.settings/
+/build
+/bin
+/obj
+/out

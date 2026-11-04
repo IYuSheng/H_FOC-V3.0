@@ -1,0 +1,5 @@
+add_subdirectory(math)
+add_subdirectory(easylogger)
+add_subdirectory(lwrb)
+add_subdirectory(letter-shell)
+add_subdirectory(printf)

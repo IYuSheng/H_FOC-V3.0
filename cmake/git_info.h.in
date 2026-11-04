@@ -1,0 +1,15 @@
+/**
+ * @file git_info.h
+ * @brief CMake 自动生成的 Git 构建信息，请勿手动修改。
+ */
+
+#ifndef GIT_INFO_H_
+#define GIT_INFO_H_
+
+#define GIT_BRANCH "@MC_GIT_BRANCH@"
+#define GIT_COMMIT "@MC_GIT_COMMIT@"
+#define GIT_TAG    "@MC_GIT_TAG@"
+#define MC_BUILD_DATE "@MC_BUILD_DATE@"
+#define MC_BUILD_TIME "@MC_BUILD_TIME@"
+
+#endif /* GIT_INFO_H_ */
