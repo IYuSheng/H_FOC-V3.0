@@ -8,15 +8,14 @@
 #include "mc_current.h"
 #include "mc_position.h"
 #include "mc_speed.h"
+#include "vofa_plot.h"
 
-#define SWEEP_RETURN_MAX_VELOCITY_RAD_S      2.0f
-#define SWEEP_RETURN_MAX_ACCELERATION_RAD_S2 10.0f
-#define SWEEP_RETURN_MAX_JERK_RAD_S3         50.0f
+#define MECH_RETURN_MAX_ACCELERATION_RAD_S2 10.0f
+#define MECH_RETURN_MAX_JERK_RAD_S3         50.0f
 
 static uint32_t step_tick;
 static uint8_t step_target_b;
 static uint8_t position_loop_tick;
-static uint8_t sweep_return_control_active;
 static uint8_t mechanical_return_control_active;
 
 /**
@@ -61,6 +60,7 @@ void mc_start_init(void)
     get_mc_bus_voltage();
     log_i("Vbus: %.2f V", mc_voltage_data.vbus);
     adc1_current_offset_calibrate();
+    mc_start();
 }
 
 /**
@@ -78,8 +78,7 @@ uint8_t mc_control_start(mc_run_profile_t profile)
         (motor_ctrl.fault_type != MOTOR_FAULT_NONE) ||
         (mc_encoder_calibration_is_running() != 0U) ||
         identify_mechanical_is_active() ||
-        identify_parameter_is_electrical_active() ||
-        mc_frequency_sweep_is_active()) {
+        identify_parameter_is_electrical_active()) {
         return 0U;
     }
 
@@ -104,6 +103,8 @@ uint8_t mc_control_start(mc_run_profile_t profile)
     mc_start();
     mc_current_control_init_from_motor();
     mc_speed_control_reset(encoder_data.mechanical_speed);
+    mc_position_control_set_shaper_bypass(0U);
+    mc_position_control_set_integral_always(0U);
     mc_position_control_init(encoder_data.mechanical_position);
 
     mc_ctrl.target_d = config->target_id;
@@ -131,7 +132,6 @@ uint8_t mc_control_start(mc_run_profile_t profile)
     step_tick = 0U;
     step_target_b = 0U;
     position_loop_tick = MC_POSITION_LOOP_DECIMATION - 1U;
-    sweep_return_control_active = 0U;
 
     started = mc_runtime_start(profile);
     if (started != 0U) {
@@ -164,7 +164,7 @@ void mc_control_stop(void)
  */
 uint8_t mc_control_start_mechanical_identification(void)
 {
-    return mc_control_start_mechanical_identification_with_amplitudes(0.140f,
+    return mc_control_start_mechanical_identification_with_amplitudes(0.100f,
                                                                       0.200f);
 }
 
@@ -184,8 +184,7 @@ uint8_t mc_control_start_mechanical_identification_with_amplitudes(
         (mc_runtime_get_mode() != MC_MODE_IDLE) ||
         (mc_encoder_calibration_is_running() != 0U) ||
         identify_mechanical_is_active() ||
-        identify_parameter_is_electrical_active() ||
-        mc_frequency_sweep_is_active()) {
+        identify_parameter_is_electrical_active()) {
         return 0U;
     }
 
@@ -194,6 +193,8 @@ uint8_t mc_control_start_mechanical_identification_with_amplitudes(
     mc_start();
     mc_current_control_init_from_motor();
     mc_speed_control_reset(encoder_data.mechanical_speed);
+    mc_position_control_set_shaper_bypass(1U);
+    mc_position_control_set_integral_always(1U);
     mc_position_control_init(encoder_data.mechanical_position);
     mc_ctrl.target_d = 0.0f;
     mc_ctrl.target_q = 0.0f;
@@ -222,127 +223,83 @@ uint8_t mc_control_start_mechanical_identification_with_amplitudes(
 }
 
 /**
- * @brief 从当前机械位置启动逐频正弦扫频
- * @return 1 表示启动成功，0 表示当前状态不允许
- */
-uint8_t mc_control_start_frequency_sweep(void)
-{
-    uint32_t primask;
-    uint8_t started;
-
-    if ((mc_runtime_is_ready() == 0U) ||
-        (motor_ctrl.fault_type != MOTOR_FAULT_NONE) ||
-        (mc_runtime_get_mode() != MC_MODE_IDLE) ||
-        (mc_encoder_calibration_is_running() != 0U) ||
-        identify_mechanical_is_active() ||
-        identify_parameter_is_electrical_active() ||
-        mc_frequency_sweep_is_active()) {
-        return 0U;
-    }
-
-    primask = __get_PRIMASK();
-    __disable_irq();
-    mc_start();
-    mc_current_control_init_from_motor();
-    mc_speed_control_reset(encoder_data.mechanical_speed);
-    mc_position_control_init(encoder_data.mechanical_position);
-    mc_ctrl.target_d = 0.0f;
-    mc_ctrl.target_q = 0.0f;
-    mc_ctrl.target_d_effective = 0.0f;
-    mc_ctrl.target_q_effective = 0.0f;
-    mc_ctrl.target_speed = 0.0f;
-    mc_ctrl.shaped_t_p = encoder_data.mechanical_position;
-    mc_ctrl.shaped_t_v = 0.0f;
-    mc_ctrl.shaped_t_a = 0.0f;
-    position_loop_tick = MC_POSITION_LOOP_DECIMATION - 1U;
-    sweep_return_control_active = 0U;
-    started = mc_frequency_sweep_start();
-    if (started != 0U) {
-        bsp_pwm_enable_outputs();
-    }
-    if (primask == 0U) {
-        __enable_irq();
-    }
-    return started;
-}
-
-/**
- * @brief 在主循环处理机械辨识结果并保存 Ka/Kv/Tc 到 FLASH
+ * @brief 在主循环处理机械辨识结果
  */
 void mc_control_background_process(void)
 {
-    const mech_identify_result_t *result;
-    float ka;
-    float kv;
-    float tc;
-    float weighted_rms;
-    float low_rms;
-    float high_rms;
-    float median_gain_std;
-    float median_phase_std;
-    float ka_high_band;
-    uint16_t point_count;
-    uint8_t error_code;
-    uint8_t result_valid;
+    identify_mechanical_result_t result;
+    ident_mech_state_t state;
 
     identify_parameter_background_process();
-
-    if (mc_frequency_sweep_is_active()) {
-        mc_frequency_sweep_background_process();
-        return;
-    }
 
     if (identify_mechanical_is_active()) {
         identify_mechanical_background_process();
     }
 
-    if (identify_mechanical_get_state() == MECH_IDENTIFY_FAILED) {
-        result = identify_mechanical_get_result();
-        error_code = result->error_code;
-        identify_mechanical_stop();
-        mc_output_idle();
-        log_e("identify mech failed code=%u", (unsigned int)error_code);
-        return;
-    }
-    if (identify_mechanical_get_state() != MECH_IDENTIFY_COMPLETE) {
+    state = identify_mechanical_get_state();
+    if ((state != IDENT_MECH_DONE) && (state != IDENT_MECH_ERROR)) {
         return;
     }
 
-    result = identify_mechanical_get_result();
-    ka = result->Ka;
-    kv = result->Kv;
-    tc = result->Tc;
-    ka_high_band = result->Ka_high_band;
-    weighted_rms = result->weighted_rms_percent;
-    low_rms = result->low_band_rms_percent;
-    high_rms = result->high_band_rms_percent;
-    median_gain_std = result->median_gain_std_percent;
-    median_phase_std = result->median_phase_std_deg;
-    point_count = result->point_count;
-    error_code = result->error_code;
-    result_valid = ((result->valid != false) && isfinite(ka) && isfinite(kv) &&
-                    isfinite(tc) && isfinite(weighted_rms) && (ka > 0.0f) &&
-                    (ka <= 0.1f) && (kv >= 0.0f) && (kv <= 1.0f) &&
-                    (tc >= 0.0f) && (tc <= 1.0f) && (weighted_rms <= 25.0f) &&
-                    (point_count == 24U) && (error_code == 0U))
-        ? 1U
-        : 0U;
-    identify_mechanical_stop();
+    /* 先把结果复制出来，再结束任务；结果保留供 identify status 查询。 */
+    result = *identify_mechanical_get_result();
+    identify_mechanical_acknowledge();
     mc_output_idle();
 
-    if (result_valid == 0U) {
-        log_e("identify mech result invalid");
+    if (state == IDENT_MECH_ERROR) {
+        log_e("identify mech failed low=%u res=%u",
+              (unsigned int)result.low_frequency_error_code,
+              (unsigned int)result.resonance_error_code);
+        return;
     }
-    else if (mc_runtime_set_mechanical(ka, kv, tc) != 0U) {
-        log_i("IDENTIFY_MECH points=%u Ka_high=%.9f rms=%.2f low=%.2f "
-              "high=%.2f gain_std=%.3f phase_std=%.3f",
-              (unsigned int)point_count, ka_high_band, weighted_rms, low_rms,
-              high_rms, median_gain_std, median_phase_std);
-        log_i("identify mech saved Ka=%.9f Kv=%.9f Tc=%.9f", ka, kv, tc);
+
+    if (result.low_frequency_valid) {
+        log_i("IDENTIFY_MECH Ka=%.9f Kv=%.9f Tc=%.9f rms=%.2f%%",
+              (double)result.ka, (double)result.kv, (double)result.tc,
+              (double)result.weighted_rms_percent);
     }
     else {
-        log_e("identify mech FLASH write failed");
+        log_e("IDENTIFY_MECH low invalid code=%u",
+              (unsigned int)result.low_frequency_error_code);
     }
+    if (result.resonance_valid) {
+        const mc_shaper_config_t *shaper = mc_runtime_get_shaper_config();
+
+        log_i("IDENTIFY_MECH resonance f=%.2fHz zeta=%.3f Q=%.2f peak=%.1fdB",
+              (double)result.resonance_frequency_hz,
+              (double)result.resonance_damping_ratio,
+              (double)result.resonance_quality_factor,
+              (double)result.resonance_prominence_db);
+        log_i("IDENTIFY_MECH shaper type=%u f=%.2fHz zeta=%.3f",
+              (unsigned int)shaper->type, (double)shaper->frequency_hz,
+              (double)shaper->damping_ratio);
+    }
+    else {
+        log_e("IDENTIFY_MECH resonance invalid code=%u",
+              (unsigned int)result.resonance_error_code);
+    }
+}
+
+/**
+ * @brief 外环节拍输出 VOFA JustFloat 波形
+ */
+static void mc_control_vofa_tick(void)
+{
+    float values[VOFA_PLOT_CHANNELS];
+
+    if (!vofa_plot_is_enabled()) {
+        return;
+    }
+
+    values[0] = mc_ctrl.shaped_t_p;
+    values[1] = encoder_data.mechanical_position;
+    values[2] = mc_ctrl.target_speed;
+    values[3] = encoder_data.mechanical_speed;
+    values[4] = mc_ctrl.target_q;
+    values[5] = mc_ctrl.abc_dq.current_q;
+    values[6] = mc_ctrl.target_d;
+    values[7] = mc_ctrl.abc_dq.current_d;
+    vofa_plot_send(values, (uint8_t)VOFA_PLOT_CHANNELS);
 }
 
 /**
@@ -350,10 +307,12 @@ void mc_control_background_process(void)
  */
 void mc_control(void)
 {
+    mc_control_vofa_tick();
+
     const uint8_t motion_active =
         (mc_runtime_get_mode() == MC_MODE_RUNNING) ||
         identify_parameter_is_electrical_active() ||
-        mc_frequency_sweep_is_active() || identify_mechanical_is_active();
+        identify_mechanical_is_active();
 
     if ((mc_encoder_calibration_is_running() == 0U) &&
         (motor_ctrl.fault_type == MOTOR_FAULT_NONE) && (motion_active != 0U) &&
@@ -369,44 +328,6 @@ void mc_control(void)
         return;
     }
 
-    if (mc_frequency_sweep_is_active()) {
-        const uint8_t returning = mc_frequency_sweep_is_returning() ? 1U : 0U;
-
-        mc_frequency_sweep_control_tick();
-        if (returning != 0U) {
-            if (sweep_return_control_active == 0U) {
-                mc_speed_control_reset(encoder_data.mechanical_speed);
-                mc_position_control_reset(encoder_data.mechanical_position,
-                                          SWEEP_RETURN_MAX_VELOCITY_RAD_S,
-                                          SWEEP_RETURN_MAX_ACCELERATION_RAD_S2,
-                                          SWEEP_RETURN_MAX_JERK_RAD_S3);
-                mc_ctrl.target_position =
-                    mc_frequency_sweep_get_start_position();
-                mc_ctrl.shaped_t_p = encoder_data.mechanical_position;
-                mc_ctrl.shaped_t_v = 0.0f;
-                mc_ctrl.shaped_t_a = 0.0f;
-                position_loop_tick = MC_POSITION_LOOP_DECIMATION - 1U;
-                sweep_return_control_active = 1U;
-            }
-
-            if (++position_loop_tick >= MC_POSITION_LOOP_DECIMATION) {
-                position_loop_tick = 0U;
-                mc_position_control_run(
-                    mc_frequency_sweep_get_start_position());
-            }
-            mc_ctrl.target_q =
-                mc_speed_control_run(mc_ctrl.target_speed, mc_ctrl.shaped_t_a,
-                                     encoder_data.mechanical_speed);
-            mc_frequency_sweep_return_feedback_tick(
-                encoder_data.mechanical_position,
-                encoder_data.mechanical_speed);
-        }
-        else {
-            sweep_return_control_active = 0U;
-        }
-        return;
-    }
-
     if (identify_mechanical_is_active()) {
         const uint8_t returning = identify_mechanical_is_returning() ? 1U : 0U;
 
@@ -415,9 +336,9 @@ void mc_control(void)
             if (mechanical_return_control_active == 0U) {
                 mc_speed_control_reset(encoder_data.mechanical_speed);
                 mc_position_control_reset(encoder_data.mechanical_position,
-                                          SWEEP_RETURN_MAX_VELOCITY_RAD_S,
-                                          SWEEP_RETURN_MAX_ACCELERATION_RAD_S2,
-                                          SWEEP_RETURN_MAX_JERK_RAD_S3);
+                                          IDENT_MECH_RETURN_VELOCITY_RAD_S,
+                                          MECH_RETURN_MAX_ACCELERATION_RAD_S2,
+                                          MECH_RETURN_MAX_JERK_RAD_S3);
                 mc_ctrl.target_position =
                     identify_mechanical_get_start_position();
                 mc_ctrl.shaped_t_p = encoder_data.mechanical_position;
@@ -429,12 +350,11 @@ void mc_control(void)
 
             if (++position_loop_tick >= MC_POSITION_LOOP_DECIMATION) {
                 position_loop_tick = 0U;
-                mc_position_control_run(
+                /* 位置→电流单环带积分，保证能克服静摩擦回到辨识起点，
+                 * 而不是停在 0.02 rad 门限之外。 */
+                mc_ctrl.target_q = mc_position_control_run_current(
                     identify_mechanical_get_start_position());
             }
-            mc_ctrl.target_q =
-                mc_speed_control_run(mc_ctrl.target_speed, mc_ctrl.shaped_t_a,
-                                     encoder_data.mechanical_speed);
             identify_mechanical_return_feedback_tick(
                 encoder_data.mechanical_position,
                 encoder_data.mechanical_speed);
@@ -521,13 +441,15 @@ void mc_current_in_control(void)
         return;
     }
 
-    if (mc_frequency_sweep_is_active() || identify_mechanical_is_active()) {
+    if (identify_mechanical_is_active()) {
         mc_current_control_run(mc_ctrl.target_d, mc_ctrl.target_q, 0U);
         return;
     }
 
     if (mc_runtime_get_mode() != MC_MODE_RUNNING) {
+        /* 上电/空闲时持续采样并计算 d/q 电流，同时保持功率级关闭。 */
         mc_output_idle();
+        mc_current_control_measure();
         return;
     }
     mc_current_control_run(mc_ctrl.target_d, mc_ctrl.target_q, 1U);

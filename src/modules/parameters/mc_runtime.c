@@ -11,8 +11,6 @@
 #define MC_RUNTIME_FLASH_ADDRESS            0x0801F000UL
 #define MC_RUNTIME_FLASH_PAGE               62U
 #define MC_RUNTIME_FLASH_MAGIC              0x464F4346UL
-#define MC_RUNTIME_FLASH_VERSION            8U
-#define MC_RUNTIME_FLASH_VERSION_V7         7U
 
 #define MC_RUNTIME_DEFAULT_ID          0.0f
 #define MC_RUNTIME_DEFAULT_IQ          0.5f
@@ -24,9 +22,12 @@
 #define MC_RUNTIME_STEP_PERIOD_MIN     10U
 #define MC_RUNTIME_STEP_PERIOD_MAX     600000U
 
+/*
+ * FLASH 参数记录不做版本兼容：固件更新时整片擦除后重新写入。
+ * magic + record_size + CRC32 用于识别一条完整记录。
+ */
 typedef struct {
     uint32_t magic;
-    uint16_t version;
     uint16_t record_size;
     float resistance;
     float inductance_ld;
@@ -47,43 +48,20 @@ typedef struct {
     float cascade_pid_ki;
     float cascade_pid_kd;
     uint32_t weakening_enabled;
+    uint32_t shaper_type;
+    float shaper_frequency_hz;
+    float shaper_damping_ratio;
     uint32_t crc32;
 } mc_runtime_flash_record_t;
 
-/** @brief v7 FLASH 参数记录，仅用于升级时保留已辨识参数 */
-typedef struct {
-    uint32_t magic;
-    uint16_t version;
-    uint16_t record_size;
-    float resistance;
-    float inductance_ld;
-    float inductance_lq;
-    float flux_linkage;
-    float ka;
-    float kv;
-    float tc;
-    float angle_min;
-    float angle_max;
-    float speed_pid_kp;
-    float speed_pid_ki;
-    float speed_pid_kd;
-    float position_pid_kp;
-    float position_pid_ki;
-    float position_pid_kd;
-    uint32_t weakening_enabled;
-    uint32_t crc32;
-} mc_runtime_flash_record_v7_t;
-
-
 _Static_assert(sizeof(mc_runtime_flash_record_t) <= FLASH_PAGE_SIZE,
                "motor config record does not fit in one FLASH page");
-_Static_assert(sizeof(mc_runtime_flash_record_t) == 88U,
-               "v8 FLASH record layout changed");
-_Static_assert(sizeof(mc_runtime_flash_record_v7_t) == 76U,
-               "v7 FLASH compatibility layout changed");
+_Static_assert(sizeof(mc_runtime_flash_record_t) == 100U,
+               "FLASH record layout changed");
 static mc_runtime_config_t runtime_config;
 static mc_motor_config_t motor_config;
 static mc_tuning_config_t tuning_config;
+static mc_shaper_config_t shaper_config;
 static volatile mc_mode_t runtime_mode = MC_MODE_IDLE;
 static volatile mc_run_profile_t runtime_profile = MC_RUN_CURRENT;
 static volatile uint8_t runtime_ready = 0U;
@@ -165,6 +143,39 @@ static uint8_t tuning_config_valid(const mc_tuning_config_t *config)
 }
 
 /**
+ * @brief 校验输入整形参数
+ * @param config 整形参数
+ * @return 1 表示有效，0 表示无效
+ */
+static uint8_t shaper_config_valid(const mc_shaper_config_t *config)
+{
+    if ((config == NULL) || (!isfinite(config->frequency_hz)) ||
+        (!isfinite(config->damping_ratio)) ||
+        (config->type > (uint8_t)6U)) {
+        return 0U;
+    }
+    if (config->type == (uint8_t)0U) {
+        return 1U;
+    }
+    if ((config->frequency_hz <= 0.0f) || (config->frequency_hz > 500.0f) ||
+        (config->damping_ratio < 0.0f) ||
+        (config->damping_ratio > 0.99f)) {
+        return 0U;
+    }
+    return 1U;
+}
+
+/**
+ * @brief 将输入整形参数恢复为默认值（不整形）
+ */
+static void shaper_config_reset(void)
+{
+    shaper_config.type = (uint8_t)MOTOR_SHAPER_TYPE;
+    shaper_config.frequency_hz = MOTOR_SHAPER_FREQUENCY_HZ;
+    shaper_config.damping_ratio = MOTOR_SHAPER_DAMPING_RATIO;
+}
+
+/**
  * @brief 校验 FLASH 中电机参数记录的格式和 CRC
  * @param record FLASH 记录
  * @return 1 表示有效，0 表示无效
@@ -174,9 +185,9 @@ runtime_flash_record_valid(const mc_runtime_flash_record_t *record)
 {
     mc_motor_config_t config;
     mc_tuning_config_t tuning;
+    mc_shaper_config_t shaper;
 
     if ((record->magic != MC_RUNTIME_FLASH_MAGIC) ||
-        (record->version != MC_RUNTIME_FLASH_VERSION) ||
         (record->record_size != sizeof(mc_runtime_flash_record_t)) ||
         (record->crc32 !=
          runtime_crc32(record, offsetof(mc_runtime_flash_record_t, crc32)))) {
@@ -201,55 +212,16 @@ runtime_flash_record_valid(const mc_runtime_flash_record_t *record)
     tuning.cascade_kp = record->cascade_pid_kp;
     tuning.cascade_ki = record->cascade_pid_ki;
     tuning.cascade_kd = record->cascade_pid_kd;
-    return (motor_config_valid(&config) != 0U &&
-            tuning_config_valid(&tuning) != 0U)
+    shaper.type = (uint8_t)record->shaper_type;
+    shaper.frequency_hz = record->shaper_frequency_hz;
+    shaper.damping_ratio = record->shaper_damping_ratio;
+    return ((record->shaper_type <= 6U) &&
+            (motor_config_valid(&config) != 0U) &&
+            (tuning_config_valid(&tuning) != 0U) &&
+            (shaper_config_valid(&shaper) != 0U))
         ? 1U
         : 0U;
 }
-
-/**
- * @brief 校验 v7 FLASH 参数记录并补齐三环 PID 默认值
- * @param record v7 FLASH 记录
- * @param config 电机参数输出
- * @param tuning PID 参数输出
- * @return 1 表示有效，0 表示无效
- */
-static uint8_t runtime_flash_record_v7_read(
-    const mc_runtime_flash_record_v7_t *record, mc_motor_config_t *config,
-    mc_tuning_config_t *tuning)
-{
-    if ((record->magic != MC_RUNTIME_FLASH_MAGIC) ||
-        (record->version != MC_RUNTIME_FLASH_VERSION_V7) ||
-        (record->record_size != sizeof(mc_runtime_flash_record_v7_t)) ||
-        (record->crc32 != runtime_crc32(
-             record, offsetof(mc_runtime_flash_record_v7_t, crc32)))) {
-        return 0U;
-    }
-
-    config->resistance = record->resistance;
-    config->inductance_ld = record->inductance_ld;
-    config->inductance_lq = record->inductance_lq;
-    config->flux_linkage = record->flux_linkage;
-    config->ka = record->ka;
-    config->kv = record->kv;
-    config->tc = record->tc;
-    config->angle_min = record->angle_min;
-    config->angle_max = record->angle_max;
-    tuning->speed_kp = record->speed_pid_kp;
-    tuning->speed_ki = record->speed_pid_ki;
-    tuning->speed_kd = record->speed_pid_kd;
-    tuning->position_kp = record->position_pid_kp;
-    tuning->position_ki = record->position_pid_ki;
-    tuning->position_kd = record->position_pid_kd;
-    tuning->cascade_kp = CASCADE_PID_KP_DEFAULT;
-    tuning->cascade_ki = CASCADE_PID_KI_DEFAULT;
-    tuning->cascade_kd = CASCADE_PID_KD_DEFAULT;
-    return (motor_config_valid(config) != 0U &&
-            tuning_config_valid(tuning) != 0U)
-        ? 1U
-        : 0U;
-}
-
 
 /**
  * @brief 将当前电机参数写入专用 FLASH 页
@@ -263,7 +235,6 @@ static uint8_t runtime_save_to_flash(void)
 
     memset(&flash_write_buffer, 0, sizeof(flash_write_buffer));
     flash_write_buffer.magic = MC_RUNTIME_FLASH_MAGIC;
-    flash_write_buffer.version = MC_RUNTIME_FLASH_VERSION;
     flash_write_buffer.record_size = sizeof(mc_runtime_flash_record_t);
     flash_write_buffer.resistance = motor_config.resistance;
     flash_write_buffer.inductance_ld = motor_config.inductance_ld;
@@ -284,6 +255,9 @@ static uint8_t runtime_save_to_flash(void)
     flash_write_buffer.cascade_pid_ki = tuning_config.cascade_ki;
     flash_write_buffer.cascade_pid_kd = tuning_config.cascade_kd;
     flash_write_buffer.weakening_enabled = runtime_config.weakening_enabled;
+    flash_write_buffer.shaper_type = shaper_config.type;
+    flash_write_buffer.shaper_frequency_hz = shaper_config.frequency_hz;
+    flash_write_buffer.shaper_damping_ratio = shaper_config.damping_ratio;
     flash_write_buffer.crc32 = runtime_crc32(
         &flash_write_buffer, offsetof(mc_runtime_flash_record_t, crc32));
 
@@ -357,6 +331,7 @@ void mc_runtime_init(void)
     tuning_config.cascade_kp = CASCADE_PID_KP_DEFAULT;
     tuning_config.cascade_ki = CASCADE_PID_KI_DEFAULT;
     tuning_config.cascade_kd = CASCADE_PID_KD_DEFAULT;
+    shaper_config_reset();
 
     if (mc_runtime_read_flash(&flash_info) != 0U) {
         motor_config.resistance = flash_info.motor.resistance;
@@ -370,6 +345,7 @@ void mc_runtime_init(void)
         motor_config.angle_max = flash_info.motor.angle_max;
         runtime_config.weakening_enabled = flash_info.weakening_enabled;
         tuning_config = flash_info.tuning;
+        shaper_config = flash_info.shaper;
     }
 
     motor_ctrl.angle_min = motor_config.angle_min;
@@ -442,6 +418,15 @@ const mc_tuning_config_t *mc_runtime_get_tuning_config(void)
 }
 
 /**
+ * @brief 获取输入整形参数
+ * @return 整形参数只读指针
+ */
+const mc_shaper_config_t *mc_runtime_get_shaper_config(void)
+{
+    return &shaper_config;
+}
+
+/**
  * @brief 校验并读取 FLASH 中实际保存的电机参数
  * @param info FLASH 记录信息输出
  * @return 1 表示记录有效，0 表示无有效记录或参数为空
@@ -450,16 +435,15 @@ uint8_t mc_runtime_read_flash(mc_runtime_flash_info_t *info)
 {
     const mc_runtime_flash_record_t *record =
         (const mc_runtime_flash_record_t *)MC_RUNTIME_FLASH_ADDRESS;
-    const mc_runtime_flash_record_v7_t *record_v7 =
-        (const mc_runtime_flash_record_v7_t *)MC_RUNTIME_FLASH_ADDRESS;
-
     if (info == NULL) {
         return 0U;
     }
     memset(info, 0, sizeof(*info));
+    info->shaper.type = (uint8_t)MOTOR_SHAPER_TYPE;
+    info->shaper.frequency_hz = MOTOR_SHAPER_FREQUENCY_HZ;
+    info->shaper.damping_ratio = MOTOR_SHAPER_DAMPING_RATIO;
 
     if (runtime_flash_record_valid(record) != 0U) {
-        info->version = record->version;
         info->motor.resistance = record->resistance;
         info->motor.inductance_ld = record->inductance_ld;
         info->motor.inductance_lq = record->inductance_lq;
@@ -478,15 +462,10 @@ uint8_t mc_runtime_read_flash(mc_runtime_flash_info_t *info)
         info->tuning.cascade_kp = record->cascade_pid_kp;
         info->tuning.cascade_ki = record->cascade_pid_ki;
         info->tuning.cascade_kd = record->cascade_pid_kd;
+        info->shaper.type = (uint8_t)record->shaper_type;
+        info->shaper.frequency_hz = record->shaper_frequency_hz;
+        info->shaper.damping_ratio = record->shaper_damping_ratio;
         info->weakening_enabled = (record->weakening_enabled != 0U) ? 1U : 0U;
-        return 1U;
-    }
-
-    if (runtime_flash_record_v7_read(record_v7, &info->motor,
-                                     &info->tuning) != 0U) {
-        info->version = MC_RUNTIME_FLASH_VERSION;
-        info->weakening_enabled =
-            (record_v7->weakening_enabled != 0U) ? 1U : 0U;
         return 1U;
     }
 
@@ -721,6 +700,42 @@ uint8_t mc_runtime_set_mechanical(float ka, float kv, float tc)
 }
 
 /**
+ * @brief 在 IDLE 模式保存输入整形参数到 FLASH
+ * @param type 整形器类型，0 表示不整形
+ * @param frequency_hz 谐振频率（Hz）
+ * @param damping_ratio 阻尼比
+ * @return 1 表示 FLASH 保存成功，0 表示失败
+ */
+uint8_t mc_runtime_set_shaper(uint8_t type, float frequency_hz,
+                              float damping_ratio)
+{
+    mc_shaper_config_t new_config;
+    mc_shaper_config_t old_config;
+
+    new_config.type = type;
+    new_config.frequency_hz = frequency_hz;
+    new_config.damping_ratio = damping_ratio;
+    if ((runtime_mode != MC_MODE_IDLE) ||
+        (shaper_config_valid(&new_config) == 0U)) {
+        return 0U;
+    }
+    if ((new_config.type == shaper_config.type) &&
+        (new_config.frequency_hz == shaper_config.frequency_hz) &&
+        (new_config.damping_ratio == shaper_config.damping_ratio)) {
+        return 1U;
+    }
+
+    old_config = shaper_config;
+    shaper_config = new_config;
+    if (runtime_save_to_flash() == 0U) {
+        shaper_config = old_config;
+        return 0U;
+    }
+
+    return 1U;
+}
+
+/**
  * @brief 保存机械角度上下限
  * @param angle_min 机械角度下限（rad），0 表示该方向不限制
  * @param angle_max 机械角度上限（rad），0 表示该方向不限制
@@ -897,6 +912,7 @@ uint8_t mc_runtime_reset_persistent(void)
 {
     const mc_motor_config_t old_motor = motor_config;
     const mc_tuning_config_t old_tuning = tuning_config;
+    const mc_shaper_config_t old_shaper = shaper_config;
     const uint8_t old_weakening = runtime_config.weakening_enabled;
 
     if (runtime_mode != MC_MODE_IDLE) {
@@ -921,11 +937,13 @@ uint8_t mc_runtime_reset_persistent(void)
     tuning_config.cascade_kp = CASCADE_PID_KP_DEFAULT;
     tuning_config.cascade_ki = CASCADE_PID_KI_DEFAULT;
     tuning_config.cascade_kd = CASCADE_PID_KD_DEFAULT;
+    shaper_config_reset();
     runtime_config.weakening_enabled = 0U;
 
     if (runtime_save_to_flash() == 0U) {
         motor_config = old_motor;
         tuning_config = old_tuning;
+        shaper_config = old_shaper;
         runtime_config.weakening_enabled = old_weakening;
         return 0U;
     }

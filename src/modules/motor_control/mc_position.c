@@ -3,6 +3,7 @@
 #include <math.h>
 
 #include "board_config.h"
+#include "mc_input_shaper.h"
 #include "mc_math.h"
 #include "mc_runtime.h"
 #include "mc_s_curve_planner.h"
@@ -14,8 +15,37 @@
 static SCurve_Planner_t position_planner;
 static pi_t position_pid;
 static pi_t cascade_position_pid;
+static input_shaper_t position_shaper;
+static input_shaper_t velocity_shaper;
+static input_shaper_t acceleration_shaper;
 static float position_last_target;
+static uint16_t shaper_flush_ticks;
 static uint8_t position_plan_valid;
+static uint8_t shaper_bypass;
+static uint8_t position_integral_always;
+
+/**
+ * @brief 设置位置环电流单环是否始终启用积分
+ * @param enable 非零表示不再按运动进度门控积分
+ * @note 辨识/扫频返回位置时使用；正常位置运动仍按 90% 进度门控，
+ *       避免长行程阶段积分饱和。
+ */
+void mc_position_control_set_integral_always(uint8_t enable)
+{
+    position_integral_always = (enable != 0U) ? 1U : 0U;
+}
+
+/**
+ * @brief 把位置、速度、加速度整形器复位到同一初始状态
+ * @param position_rad 初始位置（rad）
+ */
+static void mc_position_shaper_reset(float position_rad)
+{
+    input_shaper_reset(&position_shaper, position_rad);
+    input_shaper_reset(&velocity_shaper, 0.0f);
+    input_shaper_reset(&acceleration_shaper, 0.0f);
+    shaper_flush_ticks = 0U;
+}
 
 /**
  * @brief 获取当前 S 曲线位置运动进度
@@ -46,13 +76,16 @@ static float mc_position_control_get_progress(void)
 }
 
 /**
- * @brief 更新 S 曲线位置规划
+ * @brief 更新 S 曲线位置规划并执行输入整形
  * @param target_position_rad 目标机械位置（rad）
  * @return 当前规划位置（rad）
  */
 static float mc_position_control_update_plan(float target_position_rad)
 {
     float planned_position;
+    float planned_velocity;
+    float planned_acceleration;
+    uint8_t plan_done;
 
     if ((position_plan_valid == 0U) ||
         (fabsf(target_position_rad - position_last_target) >
@@ -61,20 +94,96 @@ static float mc_position_control_update_plan(float target_position_rad)
                            target_position_rad);
         position_last_target = target_position_rad;
         position_plan_valid = 1U;
+        mc_position_shaper_reset(mc_ctrl.shaped_t_p);
     }
 
-    if (s_curve_is_done(&position_planner) != 0U) {
+    plan_done = s_curve_is_done(&position_planner);
+    if (plan_done != 0U) {
         planned_position = target_position_rad;
-        mc_ctrl.shaped_t_v = 0.0f;
-        mc_ctrl.shaped_t_a = 0.0f;
+        planned_velocity = 0.0f;
+        planned_acceleration = 0.0f;
     }
     else {
         planned_position = s_curve_update(&position_planner);
-        mc_ctrl.shaped_t_v = position_planner.current_vel;
-        mc_ctrl.shaped_t_a = position_planner.current_acc;
+        planned_velocity = position_planner.current_vel;
+        planned_acceleration = position_planner.current_acc;
     }
 
+    /* 默认直通；辨识出谐振频率后按 EI 整形器滞后输出规划轨迹。 */
+    if ((shaper_bypass == 0U) && input_shaper_is_enabled(&position_shaper)) {
+        if (plan_done == 0U) {
+            shaper_flush_ticks = input_shaper_get_max_delay(&position_shaper);
+        }
+
+        if ((plan_done == 0U) || (shaper_flush_ticks > 0U)) {
+            planned_position =
+                input_shaper_process(&position_shaper, planned_position);
+            planned_velocity =
+                input_shaper_process(&velocity_shaper, planned_velocity);
+            planned_acceleration = input_shaper_process(&acceleration_shaper,
+                                                        planned_acceleration);
+            if ((plan_done != 0U) && (shaper_flush_ticks > 0U)) {
+                shaper_flush_ticks--;
+            }
+        }
+        else {
+            /* 延迟线已经排空，直接给定目标值，避免浮点残差。 */
+            planned_velocity = 0.0f;
+            planned_acceleration = 0.0f;
+            mc_ctrl.shaped_t_p = planned_position;
+            mc_ctrl.shaped_t_v = 0.0f;
+            mc_ctrl.shaped_t_a = 0.0f;
+            return planned_position;
+        }
+    }
+
+    mc_ctrl.shaped_t_p = planned_position;
+    mc_ctrl.shaped_t_v = planned_velocity;
+    mc_ctrl.shaped_t_a = planned_acceleration;
     return planned_position;
+}
+
+/**
+ * @brief 按 FLASH 中的参数重新配置三个位置的输入整形器
+ * @return 1 表示配置成功或已关闭整形，0 表示参数无法在当前采样率实现
+ * @note 位置环周期为 POSITION_LOOP_DT，改变位置环频率后必须重新配置。
+ */
+uint8_t mc_position_control_apply_shaper_config(void)
+{
+    const mc_shaper_config_t *config = mc_runtime_get_shaper_config();
+    const input_shaper_type_t type = (input_shaper_type_t)config->type;
+    uint8_t result = 1U;
+
+    if (input_shaper_config(&position_shaper, type, config->frequency_hz,
+                            config->damping_ratio, POSITION_LOOP_DT) != 0) {
+        result = 0U;
+    }
+    if (input_shaper_config(&velocity_shaper, type, config->frequency_hz,
+                            config->damping_ratio, POSITION_LOOP_DT) != 0) {
+        result = 0U;
+    }
+    if (input_shaper_config(&acceleration_shaper, type, config->frequency_hz,
+                            config->damping_ratio, POSITION_LOOP_DT) != 0) {
+        result = 0U;
+    }
+
+    if (result == 0U) {
+        input_shaper_disable(&position_shaper);
+        input_shaper_disable(&velocity_shaper);
+        input_shaper_disable(&acceleration_shaper);
+    }
+    shaper_flush_ticks = 0U;
+    return result;
+}
+
+/**
+ * @brief 设置位置环是否旁路输入整形
+ * @param bypass 非零表示旁路，用于辨识/扫频返回位置等内部运动
+ */
+void mc_position_control_set_shaper_bypass(uint8_t bypass)
+{
+    shaper_bypass = (bypass != 0U) ? 1U : 0U;
+    shaper_flush_ticks = 0U;
 }
 
 /**
@@ -119,6 +228,8 @@ void mc_position_control_reset(float initial_position_rad,
     cascade_position_pid.kd = tuning->cascade_kd;
     cascade_position_pid.integral_limit = POSITION_SPEED_LIMIT_RAD_S;
     mc_pid_reset(&cascade_position_pid);
+    (void)mc_position_control_apply_shaper_config();
+    mc_position_shaper_reset(initial_position_rad);
 }
 
 /**
@@ -158,8 +269,10 @@ float mc_position_control_run_current(float target_position_rad)
     mc_ctrl.target_speed = mc_ctrl.shaped_t_v;
     position_pid.integral_limit = POSITION_CURRENT_LIMIT_A;
 
-    /* 接近目标后才允许积分累积，避免长行程阶段积分饱和。 */
-    if (progress >= MC_POSITION_INTEGRAL_ENABLE_PROGRESS) {
+    /* 接近目标后才允许积分累积，避免长行程阶段积分饱和；
+     * 辨识/扫频返回位置时强制启用积分以消除摩擦死区。 */
+    if ((position_integral_always != 0U) ||
+        (progress >= MC_POSITION_INTEGRAL_ENABLE_PROGRESS)) {
         integral += position_pid.ki * POSITION_LOOP_DT * position_error;
     }
     else {

@@ -32,6 +32,7 @@
 #include "board_config.h"
 #include "drv_uart.h"
 #include "stm32g4xx_hal.h"
+#include "vofa_plot.h"
 
 /**
  * EasyLogger port initialize
@@ -62,7 +63,10 @@ void elog_port_deinit(void) {
  */
 void elog_port_output(const char *log, size_t size) {
 
-    /* add your code here */
+    /* VOFA 二进制流占用串口时丢弃日志文本。 */
+    if (vofa_plot_is_enabled()) {
+        return;
+    }
     drv_uart_write(CONFIG_UART_INSTANCE, log, size);
 }
 

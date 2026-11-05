@@ -5,7 +5,6 @@
 #include "gpio.h"
 #include "identify_parameter.h"
 #include "mc_calibration.h"
-#include "mc_frequency_sweep.h"
 #include "mc_math.h"
 #include "mc_runtime.h"
 #include "mc_sys.h"
@@ -41,7 +40,6 @@ void mc_init(void)
     mc_runtime_init();
     mc_encoder_calibration_init();
     identify_parameter_init();
-    mc_frequency_sweep_init();
 }
 
 void mc_start(void)

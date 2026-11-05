@@ -7,7 +7,6 @@
 #include "mc_calibration.h"
 #include "mc_control.h"
 #include "mc_encoder.h"
-#include "mc_frequency_sweep.h"
 #include "mc_parse.h"
 #include "mc_runtime.h"
 #include "printf.h"
@@ -51,7 +50,7 @@ static uint8_t foc_require_idle(void)
         return 0U;
     }
     if ((mc_encoder_calibration_is_running() != 0U) ||
-        identify_parameter_is_active() || mc_frequency_sweep_is_active()) {
+        identify_parameter_is_active()) {
         printf("err:maintenance busy\r\n");
         return 0U;
     }
@@ -73,7 +72,7 @@ static uint8_t foc_require_ready(void)
         return 0U;
     }
     if ((mc_encoder_calibration_is_running() != 0U) ||
-        identify_parameter_is_active() || mc_frequency_sweep_is_active()) {
+        identify_parameter_is_active()) {
         printf("err:maintenance busy\r\n");
         return 0U;
     }
@@ -276,7 +275,6 @@ static int do_stop(int argc, char *argv[])
     mc_control_stop();
     identify_parameter_stop();
     identify_mechanical_stop();
-    mc_frequency_sweep_stop();
     printf("foc stopped\r\n");
     return 0;
 }

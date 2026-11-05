@@ -72,12 +72,21 @@ typedef struct {
 } mc_tuning_config_t;
 
 /**
+ * @brief 持久化的输入整形参数
+ */
+typedef struct {
+    uint8_t type;         /**< 整形器类型（input_shaper_type_t） */
+    float frequency_hz;   /**< 谐振频率（Hz） */
+    float damping_ratio;  /**< 阻尼比 */
+} mc_shaper_config_t;
+
+/**
  * @brief FLASH 参数记录摘要
  */
 typedef struct {
     mc_motor_config_t motor;   /**< 电机参数 */
     mc_tuning_config_t tuning; /**< 三组控制环 PID 参数 */
-    uint16_t version;          /**< 记录版本 */
+    mc_shaper_config_t shaper; /**< 输入整形参数 */
     uint8_t weakening_enabled; /**< 弱磁使能 */
 } mc_runtime_flash_info_t;
 
@@ -126,6 +135,12 @@ const mc_motor_config_t *mc_runtime_get_motor_config(void);
  * @return PID 参数只读指针
  */
 const mc_tuning_config_t *mc_runtime_get_tuning_config(void);
+
+/**
+ * @brief 获取输入整形参数
+ * @return 整形参数只读指针
+ */
+const mc_shaper_config_t *mc_runtime_get_shaper_config(void);
 
 /**
  * @brief 读取并校验 FLASH 参数记录
@@ -218,6 +233,16 @@ uint8_t mc_runtime_set_motor_inductance(float inductance);
  * @return 1 表示保存成功，0 表示失败
  */
 uint8_t mc_runtime_set_mechanical(float ka, float kv, float tc);
+
+/**
+ * @brief 保存输入整形参数到 FLASH
+ * @param type 整形器类型（0 表示不整形）
+ * @param frequency_hz 谐振频率（Hz）
+ * @param damping_ratio 阻尼比
+ * @return 1 表示保存成功，0 表示运行状态或参数不允许
+ */
+uint8_t mc_runtime_set_shaper(uint8_t type, float frequency_hz,
+                              float damping_ratio);
 
 /**
  * @brief 保存机械角度上下限

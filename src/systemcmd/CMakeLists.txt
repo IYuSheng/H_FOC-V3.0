@@ -5,7 +5,7 @@ target_sources(mc_app INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/test_encoder_calibration.c
     ${CMAKE_CURRENT_SOURCE_DIR}/test_foc.c
     ${CMAKE_CURRENT_SOURCE_DIR}/test_identify.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_sweep.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_vofa.c
     ${CMAKE_CURRENT_SOURCE_DIR}/version.c
 )
 

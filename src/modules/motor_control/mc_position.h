@@ -31,6 +31,24 @@ void mc_position_control_reset(float initial_position_rad,
                                float maximum_jerk_rad_s3);
 
 /**
+ * @brief 按 FLASH 中的参数重新配置位置环输入整形器
+ * @return 1 表示配置成功或已关闭整形，0 表示当前采样率无法实现
+ */
+uint8_t mc_position_control_apply_shaper_config(void);
+
+/**
+ * @brief 设置位置环是否旁路输入整形
+ * @param bypass 非零表示旁路，用于辨识/扫频返回位置等内部运动
+ */
+void mc_position_control_set_shaper_bypass(uint8_t bypass);
+
+/**
+ * @brief 设置位置→电流单环是否始终启用积分
+ * @param enable 非零表示不再按运动进度门控积分
+ */
+void mc_position_control_set_integral_always(uint8_t enable);
+
+/**
  * @brief 执行一次位置到速度级联控制并更新规划轨迹
  * @param target_position_rad 目标机械位置（rad）
  */

@@ -55,6 +55,7 @@ static void param_list(uint8_t changed_only)
 {
     const mc_motor_config_t *motor = mc_runtime_get_motor_config();
     const mc_tuning_config_t *tuning = mc_runtime_get_tuning_config();
+    const mc_shaper_config_t *shaper = mc_runtime_get_shaper_config();
     const float_param_t parameters[] = {
         {"RESISTANCE", motor->resistance, MOTOR_RESISTANCE},
         {"INDUCTANCE_LD", motor->inductance_ld, MOTOR_INDUCTANCE_Ld},
@@ -74,6 +75,8 @@ static void param_list(uint8_t changed_only)
         {"CASCADE_KP", tuning->cascade_kp, CASCADE_PID_KP_DEFAULT},
         {"CASCADE_KI", tuning->cascade_ki, CASCADE_PID_KI_DEFAULT},
         {"CASCADE_KD", tuning->cascade_kd, CASCADE_PID_KD_DEFAULT},
+        {"SHAPER_FREQ_HZ", shaper->frequency_hz, MOTOR_SHAPER_FREQUENCY_HZ},
+        {"SHAPER_DAMPING", shaper->damping_ratio, MOTOR_SHAPER_DAMPING_RATIO},
     };
     int count = 0;
 
@@ -88,6 +91,14 @@ static void param_list(uint8_t changed_only)
         }
         printf("%c %-18s %-4s %.9f\r\n", (changed != 0U) ? 'x' : ' ',
                parameters[i].name, "F32", parameters[i].value);
+        count++;
+    }
+
+    if ((shaper->type != (uint8_t)MOTOR_SHAPER_TYPE) ||
+        (changed_only == 0U)) {
+        printf("%c %-18s %-4s %u\r\n",
+               (shaper->type != (uint8_t)MOTOR_SHAPER_TYPE) ? 'x' : ' ',
+               "SHAPER_TYPE", "U8", (unsigned int)shaper->type);
         count++;
     }
 
@@ -137,13 +148,20 @@ static int param_set(const char *name, const char *value)
         (strcmp(name, "POS_KD") == 0) ||
         (strcmp(name, "CASCADE_KP") == 0) ||
         (strcmp(name, "CASCADE_KI") == 0) ||
-        (strcmp(name, "CASCADE_KD") == 0)) {
+        (strcmp(name, "CASCADE_KD") == 0) ||
+        (strcmp(name, "SHAPER_FREQ_HZ") == 0) ||
+        (strcmp(name, "SHAPER_DAMPING") == 0)) {
         if (mc_parse_float(value, &number) == 0U) {
             return -1;
         }
     }
     else if (strcmp(name, "WEAKENING_ENABLED") == 0) {
         if ((parse_u32(value, &integer) == 0U) || (integer > 1U)) {
+            return -1;
+        }
+    }
+    else if (strcmp(name, "SHAPER_TYPE") == 0) {
+        if ((parse_u32(value, &integer) == 0U) || (integer > 6U)) {
             return -1;
         }
     }
@@ -221,6 +239,24 @@ static int param_set(const char *name, const char *value)
         const float kd =
             (strcmp(name, "CASCADE_KD") == 0) ? number : tuning->cascade_kd;
         return mc_runtime_set_cascade_pid(kp, ki, kd) != 0U ? 0 : -1;
+    }
+    if ((strcmp(name, "SHAPER_TYPE") == 0) ||
+        (strcmp(name, "SHAPER_FREQ_HZ") == 0) ||
+        (strcmp(name, "SHAPER_DAMPING") == 0)) {
+        const mc_shaper_config_t *shaper = mc_runtime_get_shaper_config();
+        const uint8_t type = (strcmp(name, "SHAPER_TYPE") == 0)
+            ? (uint8_t)integer
+            : shaper->type;
+        const float frequency_hz = (strcmp(name, "SHAPER_FREQ_HZ") == 0)
+            ? number
+            : shaper->frequency_hz;
+        const float damping_ratio = (strcmp(name, "SHAPER_DAMPING") == 0)
+            ? number
+            : shaper->damping_ratio;
+
+        return mc_runtime_set_shaper(type, frequency_hz, damping_ratio) != 0U
+            ? 0
+            : -1;
     }
     if (strcmp(name, "WEAKENING_ENABLED") == 0) {
         return mc_runtime_set_weakening(integer) != 0U ? 0 : -1;

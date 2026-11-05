@@ -5,6 +5,7 @@
 #include "board_config.h"
 #include "drv_uart.h"
 #include "shell.h"
+#include "vofa_plot.h"
 
 static Shell shell;
 static char shell_buffer[512];
@@ -55,6 +56,10 @@ static signed short mc_shell_read(char *data, unsigned short length)
  */
 static signed short mc_shell_write(char *data, unsigned short length)
 {
+    /* VOFA 二进制流占用串口时不再回显 shell 文本。 */
+    if (vofa_plot_is_enabled()) {
+        return (signed short)length;
+    }
     return (signed short)drv_uart_write(CONFIG_UART_INSTANCE, data, length);
 }
 

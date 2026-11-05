@@ -3,7 +3,6 @@
 #include "data_types.h"
 #include "identify_parameter.h"
 #include "mc_calibration.h"
-#include "mc_frequency_sweep.h"
 #include "mc_runtime.h"
 #include "printf.h"
 #include "shell.h"
@@ -31,7 +30,7 @@ void test_encoder_calibration(int argc, char *argv[])
         goto exit;
     }
     if ((mc_runtime_get_mode() != MC_MODE_IDLE) ||
-        identify_parameter_is_active() || mc_frequency_sweep_is_active()) {
+        identify_parameter_is_active()) {
         printf("err:calib busy\r\n");
         return;
     }

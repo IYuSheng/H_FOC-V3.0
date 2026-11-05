@@ -25,4 +25,6 @@ test:
 	./tools/test_mc_weak.sh
 	./tools/test_mc_parse.sh
 	./tools/test_mc_splan.sh
+	./tools/test_mc_input_shaper.sh
+	./tools/test_vofa.sh
 	./tools/test_printf.sh

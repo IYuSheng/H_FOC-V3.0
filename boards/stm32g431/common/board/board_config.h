@@ -32,6 +32,9 @@
 #define MOTOR_TC            0.0f             /**< 库仑摩擦电流（A） */
 #define MOTOR_ANGLE_MIN     0.0f             /**< 默认角度下限（rad），0 表示不限制 */
 #define MOTOR_ANGLE_MAX     0.0f             /**< 默认角度上限（rad），0 表示不限制 */
+#define MOTOR_SHAPER_TYPE          0U   /**< 输入整形类型，0 表示默认不整形 */
+#define MOTOR_SHAPER_FREQUENCY_HZ  0.0f /**< 输入整形谐振频率（Hz） */
+#define MOTOR_SHAPER_DAMPING_RATIO 0.0f /**< 输入整形阻尼比 */
 /** @} */
 
 /** @name FOC 控制参数 */
@@ -62,9 +65,9 @@
 
 /** @name 位置环参数 */
 /** @{ */
-#define POSITION_LOOP_TIME 1000.0f                     /**< 位置环频率（Hz） */
+#define POSITION_LOOP_TIME 5000.0f                     /**< 位置环频率（Hz） */
 #define POSITION_LOOP_DT   (1.0f / POSITION_LOOP_TIME) /**< 位置环周期（s） */
-#define MC_POSITION_LOOP_DECIMATION 5U     /**< 外环到位置环的降采样系数 */
+#define MC_POSITION_LOOP_DECIMATION 1U     /**< 外环到位置环的降采样系数 */
 #define POSITION_PID_KP_DEFAULT     6.0f   /**< 位置环默认 Kp */
 #define POSITION_PID_KI_DEFAULT     100.0f /**< 位置环默认 Ki */
 #define POSITION_PID_KD_DEFAULT     0.01f  /**< 位置环默认 Kd */

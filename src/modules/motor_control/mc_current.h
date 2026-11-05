@@ -53,6 +53,11 @@ void mc_current_control_run(float target_d, float target_q,
                             uint8_t control_running);
 
 /**
+ * @brief 仅执行电流采样和 Park 变换，不改变 PWM 输出
+ */
+void mc_current_control_measure(void);
+
+/**
  * @brief 输出四相 PWM 中点，使电机进入零电压状态
  */
 void mc_output_idle(void);

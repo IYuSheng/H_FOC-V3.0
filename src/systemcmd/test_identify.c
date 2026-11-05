@@ -9,7 +9,6 @@
 #include "identify_resistance.h"
 #include "mc_calibration.h"
 #include "mc_control.h"
-#include "mc_frequency_sweep.h"
 #include "mc_parse.h"
 #include "mc_runtime.h"
 #include "printf.h"
@@ -30,7 +29,7 @@ static uint8_t identify_require_idle(void)
         return 0U;
     }
     if ((mc_encoder_calibration_is_running() != 0U) ||
-        identify_parameter_is_active() || mc_frequency_sweep_is_active()) {
+        identify_parameter_is_active()) {
         printf("err:maintenance busy\r\n");
         return 0U;
     }
@@ -137,10 +136,25 @@ void test_identify(int argc, char *argv[])
     }
 
     if (strcmp(argv[1], "status") == 0) {
+        const identify_mechanical_result_t *result =
+            identify_mechanical_get_result();
+
         printf("identify res:%u ind:%u mech:%u\r\n",
                (unsigned int)identify_resistance_get()->state,
                (unsigned int)identify_inductance_get()->state,
                (unsigned int)identify_mechanical_get_state());
+        printf("mech low:%u code:%u Ka:%.9f Kv:%.9f Tc:%.9f rms:%.2f%%\r\n",
+               (unsigned int)result->low_frequency_valid,
+               (unsigned int)result->low_frequency_error_code,
+               (double)result->ka, (double)result->kv, (double)result->tc,
+               (double)result->weighted_rms_percent);
+        printf("mech res:%u code:%u f:%.2fHz zeta:%.3f Q:%.2f peak:%.1fdB\r\n",
+               (unsigned int)result->resonance_valid,
+               (unsigned int)result->resonance_error_code,
+               (double)result->resonance_frequency_hz,
+               (double)result->resonance_damping_ratio,
+               (double)result->resonance_quality_factor,
+               (double)result->resonance_prominence_db);
         return;
     }
 

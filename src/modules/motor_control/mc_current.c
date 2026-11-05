@@ -277,6 +277,19 @@ void mc_current_control_run(float target_d, float target_q,
 }
 
 /**
+ * @brief 仅执行电流采样和 Park 变换，不改变 PWM 输出
+ * @note 空闲状态下用于持续更新 abc_dq 电流观测值。
+ */
+void mc_current_control_measure(void)
+{
+    alpha_beta.alpha_i = mc_current_data.IA;
+    alpha_beta.beta_i = mc_current_data.IB;
+    mc_ctrl.angle = encoder_data.electrical_angle;
+    park_transform(&alpha_beta, &mc_ctrl, encoder_data.electrical_sin,
+                   encoder_data.electrical_cos);
+}
+
+/**
  * @brief 输出四相 PWM 中点，使电机进入零电压状态
  */
 void mc_output_idle(void)
